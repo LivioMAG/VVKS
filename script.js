@@ -206,11 +206,11 @@ exportPdfBtn.addEventListener("click", () => {
 
   const report = buildPdfReportNode();
   const opt = {
-    margin: [10, 8, 10, 8],
+    margin: [0, 0, 0, 0],
     filename: `${slugifyProjectName(getProjectName())}-report-${new Date().toISOString().slice(0, 10)}.pdf`,
     image: { type: "jpeg", quality: 0.98 },
     html2canvas: { scale: 2, useCORS: true },
-    jsPDF: { unit: "mm", format: "a4", orientation: "landscape" },
+    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
     pagebreak: { mode: ["avoid-all", "css", "legacy"] },
   };
 
@@ -565,7 +565,8 @@ function evaluateProducts() {
       } else if (maxPrice === minPrice) {
         item.priceScore = 100;
       } else {
-        item.priceScore = ((maxPrice - item.priceValue) / (maxPrice - minPrice)) * 100;
+        const relativeScore = (maxPrice - item.priceValue) / (maxPrice - minPrice);
+        item.priceScore = 50 + relativeScore * 50;
       }
       item.finalScore = item.percent * ((100 - priceWeight) / 100) + item.priceScore * (priceWeight / 100);
     });
@@ -644,38 +645,98 @@ function buildPdfReportNode() {
   const wrapper = document.createElement("div");
   const evaluation = evaluateProducts();
   const date = new Date().toLocaleDateString("de-DE");
+  const headingColor = "#2f7d32";
+  const accentColor = "#67a95c";
   const productList = state.products
     .map((prd) => `<li><strong>${escapeHtml(prd.name)}</strong> – ${escapeHtml(prd.vendor)} – ${escapeHtml(formatPriceCHF(prd.price || "k. A."))}</li>`)
     .join("");
   const overallChart = buildOverallChart(evaluation);
   const requirementCharts = buildRequirementCharts(evaluation, true);
 
-  wrapper.style.padding = "16px";
   wrapper.style.fontFamily = "Inter, Arial, sans-serif";
   wrapper.style.color = "#1f2937";
   wrapper.innerHTML = `
-    <header style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border-bottom:2px solid #dbeafe;padding-bottom:8px;margin-bottom:12px;">
-      <div>
-        <h1 style="margin:0 0 2px 0;color:#1d4ed8;">${escapeHtml(getProjectName())}</h1>
-        <p style="margin:0;font-size:20px;font-weight:700;color:#0369a1;">Evolution Report</p>
-        <p style="margin:2px 0 0 0;color:#475569;">Datum: ${date}</p>
+    <style>
+      .pdf-page {
+        min-height: 260mm;
+        padding: 34mm 12mm 26mm 12mm;
+        box-sizing: border-box;
+      }
+      .pdf-page + .pdf-page {
+        page-break-before: always;
+      }
+      .pdf-fixed-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 24mm;
+        padding: 7mm 12mm 4mm 12mm;
+        border-bottom: 1px solid #cbd5e1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #ffffff;
+      }
+      .pdf-fixed-footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        min-height: 16mm;
+        padding: 3mm 12mm 6mm 12mm;
+        border-top: 1px solid #cbd5e1;
+        display: flex;
+        justify-content: space-between;
+        gap: 8mm;
+        background: #ffffff;
+        font-size: 10px;
+        line-height: 1.35;
+      }
+    </style>
+
+    <div class="pdf-fixed-header">
+      <div style="font-size:11px;font-weight:600;color:#0f172a;">
+        Verein Kooperative Speicherbibliothek Schweiz
       </div>
       <img
         src="logo.PNG"
         alt="Logo"
-        style="max-width:170px;max-height:70px;object-fit:contain;"
+        style="max-width:120px;max-height:48px;object-fit:contain;"
         onerror="this.onerror=null;this.src='Logo.png';"
       />
-    </header>
+    </div>
 
-    <h2 style="color:#1d4ed8;border-left:4px solid #0ea5e9;padding-left:8px;">Produkte</h2>
-    <ul>
-      ${productList || "<li>Keine Produkte vorhanden.</li>"}
-    </ul>
-    <h2 style="color:#1d4ed8;border-left:4px solid #0ea5e9;padding-left:8px;">Gesamtauswertung</h2>
-    ${overallChart || "<p>Keine Gesamtauswertung verfügbar.</p>"}
-    <h2 style="color:#1d4ed8;border-left:4px solid #0ea5e9;padding-left:8px;">Säulendiagramme je Anforderung</h2>
-    ${requirementCharts || "<p>Keine Grafik verfügbar.</p>"}
+    <div class="pdf-fixed-footer">
+      <div style="text-align:left;">
+        Verein Kooperative Speicherbibliothek Schweiz, Grammat 15, 62333 Büren
+      </div>
+      <div style="text-align:right;">
+        <div>Maik, Marci, Tel 041 932 0000</div>
+        <div>maik.maerci@speicherbibliothek.ch</div>
+        <div>www.speicherbibliothek.ch</div>
+      </div>
+    </div>
+
+    <section class="pdf-page">
+      <h1 style="margin:0 0 2px 0;color:${headingColor};">${escapeHtml(getProjectName())}</h1>
+      <p style="margin:0;font-size:20px;font-weight:700;color:${headingColor};">Evaluation Report</p>
+      <p style="margin:2px 0 16px 0;color:#475569;">Datum: ${date}</p>
+      <h2 style="color:${headingColor};border-left:4px solid ${accentColor};padding-left:8px;">Produkte</h2>
+      <ul>
+        ${productList || "<li>Keine Produkte vorhanden.</li>"}
+      </ul>
+    </section>
+
+    <section class="pdf-page">
+      <h2 style="color:${headingColor};border-left:4px solid ${accentColor};padding-left:8px;">Gesamtauswertung</h2>
+      ${overallChart || "<p>Keine Gesamtauswertung verfügbar.</p>"}
+    </section>
+
+    <section class="pdf-page">
+      <h2 style="color:${headingColor};border-left:4px solid ${accentColor};padding-left:8px;">Säulendiagramme je Anforderung</h2>
+      ${requirementCharts || "<p>Keine Grafik verfügbar.</p>"}
+    </section>
   `;
 
   return wrapper;
