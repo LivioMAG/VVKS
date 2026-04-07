@@ -694,13 +694,14 @@ function buildPdfReportNode() {
   wrapper.innerHTML = `
     <style>
       .pdf-page {
-        min-height: 297mm;
         padding: 14mm;
         box-sizing: border-box;
         display: flex;
         flex-direction: column;
         gap: 8mm;
         position: relative;
+        page-break-after: always;
+        break-after: page;
       }
       .pdf-page.has-fixed-footer {
         padding-bottom: 42mm;
@@ -708,8 +709,9 @@ function buildPdfReportNode() {
       .pdf-page-content {
         flex: 1;
       }
-      .pdf-page + .pdf-page {
-        page-break-before: always;
+      .pdf-page:last-of-type {
+        page-break-after: auto;
+        break-after: auto;
       }
       .pdf-title-row {
         display: flex;
