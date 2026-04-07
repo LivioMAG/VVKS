@@ -603,7 +603,7 @@ function evaluateProducts() {
       }
       item.weightedFunctionalScore = item.percent * ((100 - priceWeight) / 100);
       item.weightedPriceScore = item.priceScore * (priceWeight / 100);
-      item.finalScore = item.weightedFunctionalScore + item.weightedPriceScore;
+      item.finalScore = clamp(item.weightedFunctionalScore + item.weightedPriceScore, 0, 100);
     });
   } else {
     ranked.forEach((item) => {
@@ -669,7 +669,7 @@ function buildOverallChart(evaluation) {
         <div class="chart-label ${item.excluded ? "muted-product" : ""}">${escapeHtml(item.name)}</div>
         <div class="chart-bars">
           <div class="bar final ${item.excluded ? "excluded" : ""}" style="width:${Math.max(2, Math.min(100, item.finalScore))}%">Gesamt ${item.finalScore.toFixed(1)}%</div>
-          <div class="bar functional ${item.excluded ? "excluded" : ""}" style="width:${Math.max(2, Math.min(100, item.percent))}%">Anforderung ${item.percent.toFixed(1)}%</div>
+          <div class="bar functional ${item.excluded ? "excluded" : ""}" style="width:${Math.max(2, Math.min(100, item.weightedFunctionalScore))}%">Anforderungsanteil ${item.weightedFunctionalScore.toFixed(1)}%</div>
           <div class="bar price ${item.excluded ? "excluded" : ""}" style="width:${Math.max(2, Math.min(100, item.weightedPriceScore))}%">Preisanteil ${item.weightedPriceScore.toFixed(1)}%</div>
         </div>
         ${item.excluded ? "<p class='meta excluded-note'>Hat eine zwingende Anforderung nicht erfüllt.</p>" : ""}
