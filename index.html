@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Anforderungs- und Produktevaluation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <script
+      defer
+      src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script defer src="script.js"></script>
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <h1>Anforderungs- und Produktevaluation</h1>
+        <p>Frontend-basierte Bewertung mit automatischer Auswertung und PDF-Export</p>
+      </div>
+      <div class="header-actions">
+        <button id="exportPdfBtn" class="btn btn-primary">PDF exportieren</button>
+        <button id="resetBtn" class="btn btn-danger">Daten löschen / Reset</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="card">
+        <h2>Anforderungen</h2>
+        <form id="requirementForm" class="grid-form">
+          <label>
+            Titel / Name
+            <input type="text" name="title" required placeholder="z. B. ISO 27001 Compliance" />
+          </label>
+          <label>
+            Kategorie
+            <input type="text" name="category" required placeholder="z. B. Sicherheit" />
+          </label>
+          <label class="span-2">
+            Beschreibung
+            <textarea name="description" rows="2" required placeholder="Kurzbeschreibung der Anforderung"></textarea>
+          </label>
+          <label>
+            Typ
+            <select name="type" required>
+              <option value="must">Must-have</option>
+              <option value="nice">Nice-to-have</option>
+            </select>
+          </label>
+          <label>
+            Priorität
+            <select name="priority" required>
+              <option value="critical">Zwingend</option>
+              <option value="high">Hoch</option>
+              <option value="medium">Mittel</option>
+              <option value="low">Niedrig</option>
+            </select>
+          </label>
+          <label class="span-2">
+            Bemerkung (optional)
+            <input type="text" name="note" placeholder="Optional" />
+          </label>
+          <div class="actions span-2">
+            <button type="submit" class="btn btn-secondary">Anforderung hinzufügen</button>
+          </div>
+        </form>
+        <div id="requirementsList" class="list"></div>
+      </section>
+
+      <section class="card">
+        <h2>Produkte</h2>
+        <form id="productForm" class="grid-form">
+          <label>
+            Produktname
+            <input type="text" name="name" required placeholder="z. B. Produkt A" />
+          </label>
+          <label>
+            Hersteller
+            <input type="text" name="vendor" required placeholder="z. B. Firma XY" />
+          </label>
+          <label class="span-2">
+            Kurzbeschreibung
+            <textarea name="summary" rows="2" required placeholder="Kurzbeschreibung des Produkts"></textarea>
+          </label>
+          <label>
+            Preis / Preisnotiz
+            <input type="text" name="price" placeholder="z. B. 49 € / Monat" />
+          </label>
+          <label>
+            Bemerkung
+            <input type="text" name="note" placeholder="Optional" />
+          </label>
+          <div class="actions span-2">
+            <button type="submit" class="btn btn-secondary">Produkt hinzufügen</button>
+          </div>
+        </form>
+        <div id="productsList" class="list"></div>
+      </section>
+
+      <section class="card span-full">
+        <h2>Bewertungsmatrix</h2>
+        <p class="hint">Bewertung je Zelle: Erfüllt (100%), Teilweise erfüllt (50%), Nicht erfüllt (0%), Nicht bewertet (0%).</p>
+        <div id="matrixContainer" class="table-wrap"></div>
+      </section>
+
+      <section class="card span-full" id="resultsSection">
+        <h2>Auswertung</h2>
+        <div id="resultsContent"></div>
+      </section>
+    </main>
+
+    <template id="pillTemplate">
+      <span class="pill"></span>
+    </template>
+  </body>
+</html>
