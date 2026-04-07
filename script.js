@@ -18,7 +18,7 @@ const TYPE_FACTOR = {
 const RATING_FACTOR = {
   full: 1,
   mostly: 0.66,
-  partial: 0.93,
+  partial: 0.33,
   none: 0,
   na: 0,
 };
@@ -93,6 +93,7 @@ const csvAssistantConfig = {
 let editingRequirementId = null;
 let editingProductId = null;
 let pendingQuickEdit = null;
+let matrixFilterValue = "all";
 
 requirementForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -152,6 +153,7 @@ resetBtn.addEventListener("click", () => {
   state.mustWeight = 50;
   state.niceWeight = 20;
   state.priceWeight = 30;
+  state.lockedWeightKey = null;
   state.collapsed = { requirements: false, products: false };
   render();
   if (projectDialog?.showModal) projectDialog.showModal();
@@ -170,6 +172,7 @@ createProjectBtn.addEventListener("click", () => {
   state.mustWeight = 50;
   state.niceWeight = 20;
   state.priceWeight = 30;
+  state.lockedWeightKey = null;
   state.collapsed = { requirements: false, products: false };
   editingRequirementId = null;
   editingProductId = null;
@@ -193,6 +196,7 @@ projectCsvInput.addEventListener("change", async () => {
     state.mustWeight = importedState.mustWeight;
     state.niceWeight = importedState.niceWeight;
     state.priceWeight = importedState.priceWeight;
+    state.lockedWeightKey = importedState.lockedWeightKey;
     state.requirements = importedState.requirements;
     state.products = importedState.products;
     state.ratings = importedState.ratings;
@@ -311,6 +315,7 @@ function loadState() {
     mustWeight: 50,
     niceWeight: 20,
     priceWeight: 30,
+    lockedWeightKey: null,
     collapsed: { requirements: false, products: false },
   };
   try {
@@ -325,6 +330,7 @@ function loadState() {
       mustWeight: clamp(Number(parsed.mustWeight ?? 50), 0, 100),
       niceWeight: clamp(Number(parsed.niceWeight ?? 20), 0, 100),
       priceWeight: clamp(Number(parsed.priceWeight ?? 30), 0, 100),
+      lockedWeightKey: ["mustWeight", "niceWeight", "priceWeight"].includes(parsed.lockedWeightKey) ? parsed.lockedWeightKey : null,
       collapsed: {
         requirements: Boolean(parsed.collapsed?.requirements),
         products: Boolean(parsed.collapsed?.products),
@@ -502,7 +508,28 @@ function renderMatrix() {
     return;
   }
 
-  let html = "<table><thead><tr><th>Anforderung</th>";
+  const filterOptions = [
+    { value: "all", label: "Alle Bewertungen" },
+    { value: "full", label: "Erfüllt (100%)" },
+    { value: "mostly", label: "Mehrheitlich erfüllt (66%)" },
+    { value: "partial", label: "Teilweise erfüllt (33%)" },
+    { value: "none", label: "Nicht erfüllt (0%)" },
+    { value: "na", label: "Nicht bewertet (0%)" },
+  ];
+  const activeFilter = filterOptions.some((option) => option.value === matrixFilterValue) ? matrixFilterValue : "all";
+
+  let html = `
+    <div class="matrix-filter-box">
+      <label>
+        Filter (Bewertungsmatrix)
+        <select id="matrixRatingFilter">
+          ${filterOptions
+            .map((option) => `<option value="${option.value}" ${option.value === activeFilter ? "selected" : ""}>${option.label}</option>`)
+            .join("")}
+        </select>
+      </label>
+    </div>
+    <table><thead><tr><th>Anforderung</th>`;
   for (const prd of state.products) {
     html += `<th>${escapeHtml(prd.name)}</th>`;
   }
@@ -513,8 +540,9 @@ function renderMatrix() {
     for (const prd of state.products) {
       const key = ratingKey(req.id, prd.id);
       const selected = state.ratings[key] || "na";
+      const filteredClass = activeFilter !== "all" && selected !== activeFilter ? " matrix-cell-filtered" : "";
       html += `<td>
-        <select data-matrix="${key}">
+        <select data-matrix="${key}" class="${filteredClass.trim()}">
           ${Object.entries(RATING_LABELS)
             .map(([value, label]) => `<option value="${value}" ${selected === value ? "selected" : ""}>${label}</option>`)
             .join("")}
@@ -533,6 +561,12 @@ function renderMatrix() {
       persistAndRender();
     });
   });
+
+  const matrixRatingFilter = document.getElementById("matrixRatingFilter");
+  matrixRatingFilter?.addEventListener("change", () => {
+    matrixFilterValue = matrixRatingFilter.value;
+    renderMatrix();
+  });
 }
 
 function renderResults() {
@@ -549,17 +583,27 @@ function renderResults() {
     <div class="price-weight-box">
       <label>
         Must-Have Relevanz in der Gesamtauswertung: <strong><span id="mustWeightValue">${evaluation.mustWeight}%</span></strong>
-        <input id="mustWeightSlider" type="range" min="0" max="100" step="1" value="${evaluation.mustWeight}" />
+        <div class="weight-control-row">
+          <input id="mustWeightSlider" type="range" min="0" max="100" step="1" value="${evaluation.mustWeight}" />
+          <label class="weight-lock-label"><input type="radio" name="weightLock" value="mustWeight" ${state.lockedWeightKey === "mustWeight" ? "checked" : ""} /> Koppeln</label>
+        </div>
       </label>
       <label>
         Nice to Have Relevanz in der Gesamtauswertung: <strong><span id="niceWeightValue">${evaluation.niceWeight}%</span></strong>
-        <input id="niceWeightSlider" type="range" min="0" max="100" step="1" value="${evaluation.niceWeight}" />
+        <div class="weight-control-row">
+          <input id="niceWeightSlider" type="range" min="0" max="100" step="1" value="${evaluation.niceWeight}" />
+          <label class="weight-lock-label"><input type="radio" name="weightLock" value="niceWeight" ${state.lockedWeightKey === "niceWeight" ? "checked" : ""} /> Koppeln</label>
+        </div>
       </label>
       <label>
         Preis-Relevanz in der Gesamtauswertung: <strong><span id="priceWeightValue">${evaluation.priceWeight}%</span></strong>
-        <input id="priceWeightSlider" type="range" min="0" max="100" step="1" value="${evaluation.priceWeight}" />
+        <div class="weight-control-row">
+          <input id="priceWeightSlider" type="range" min="0" max="100" step="1" value="${evaluation.priceWeight}" />
+          <label class="weight-lock-label"><input type="radio" name="weightLock" value="priceWeight" ${state.lockedWeightKey === "priceWeight" ? "checked" : ""} /> Koppeln</label>
+        </div>
       </label>
-      <p class="meta">Die drei Regler sind gekoppelt und ergeben immer zusammen 100%.</p>
+      <button id="clearWeightLockBtn" type="button" class="btn btn-ghost btn-small">Kopplung entfernen</button>
+      <p class="meta">Mit Kopplung bleibt ein Regler fix. Du setzt einen zweiten Regler, der dritte berechnet sich automatisch (gesamt 100%).</p>
     </div>
     <div class="beautiful-chart" id="beautifulChart">
       <h3>Gesamtauswertung je Produkt (inkl. Preisfaktor)</h3>
@@ -570,6 +614,8 @@ function renderResults() {
       ${requirementCharts}
     </div>
   `;
+
+  applyWeightSliderDisabledState();
 
   const mustWeightSlider = document.getElementById("mustWeightSlider");
   mustWeightSlider?.addEventListener("input", () => {
@@ -588,11 +634,37 @@ function renderResults() {
     setWeightsWithFixedTotal("priceWeight", Number(priceWeightSlider.value));
     persistAndRender();
   });
+
+  document.querySelectorAll('input[name="weightLock"]').forEach((radio) => {
+    radio.addEventListener("change", () => {
+      state.lockedWeightKey = radio.value;
+      persistAndRender();
+    });
+  });
+
+  document.getElementById("clearWeightLockBtn")?.addEventListener("click", () => {
+    state.lockedWeightKey = null;
+    persistAndRender();
+  });
 }
 
 function setWeightsWithFixedTotal(changedKey, rawValue) {
+  if (state.lockedWeightKey && changedKey === state.lockedWeightKey) return;
+
   const nextValue = clamp(Math.round(Number(rawValue) || 0), 0, 100);
   const keys = ["mustWeight", "niceWeight", "priceWeight"];
+  const lockedKey = state.lockedWeightKey;
+
+  if (lockedKey && keys.includes(lockedKey)) {
+    const freeKey = keys.find((key) => key !== lockedKey && key !== changedKey);
+    if (!freeKey) return;
+    const lockedValue = clamp(Math.round(Number(state[lockedKey]) || 0), 0, 100);
+    const boundedValue = clamp(nextValue, 0, 100 - lockedValue);
+    state[changedKey] = boundedValue;
+    state[freeKey] = 100 - lockedValue - boundedValue;
+    return;
+  }
+
   const otherKeys = keys.filter((key) => key !== changedKey);
   const remainder = 100 - nextValue;
   const currentOtherTotal = otherKeys.reduce((sum, key) => sum + (Number(state[key]) || 0), 0);
@@ -609,6 +681,19 @@ function setWeightsWithFixedTotal(changedKey, rawValue) {
   const firstShare = Math.round(remainder * firstProportional);
   state[otherKeys[0]] = firstShare;
   state[otherKeys[1]] = remainder - firstShare;
+}
+
+function applyWeightSliderDisabledState() {
+  const sliderMap = {
+    mustWeight: document.getElementById("mustWeightSlider"),
+    niceWeight: document.getElementById("niceWeightSlider"),
+    priceWeight: document.getElementById("priceWeightSlider"),
+  };
+
+  Object.entries(sliderMap).forEach(([key, slider]) => {
+    if (!slider) return;
+    slider.disabled = state.lockedWeightKey === key;
+  });
 }
 
 function evaluateProducts() {
@@ -1243,6 +1328,7 @@ function initializeProjectPicker() {
   if (!Number.isFinite(state.mustWeight)) state.mustWeight = 50;
   if (!Number.isFinite(state.niceWeight)) state.niceWeight = 20;
   if (!Number.isFinite(state.priceWeight)) state.priceWeight = 30;
+  if (!["mustWeight", "niceWeight", "priceWeight", null].includes(state.lockedWeightKey)) state.lockedWeightKey = null;
   normalizeWeightsToHundred();
   render();
   if (!state.projectName && typeof projectDialog.showModal === "function" && !projectDialog.open) {

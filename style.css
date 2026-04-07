@@ -483,3 +483,37 @@ td select {
   .chart-row { grid-template-columns: 1fr; }
   .mini-chart-grid { grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); }
 }
+
+.matrix-filter-box {
+  margin-bottom: 0.8rem;
+}
+
+.matrix-cell-filtered {
+  opacity: 0.45;
+}
+
+.weight-control-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.weight-control-row input[type="range"] {
+  flex: 1;
+}
+
+.weight-lock-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #334155;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.btn-small {
+  padding: 0.4rem 0.65rem;
+  margin-top: 0.4rem;
+}
