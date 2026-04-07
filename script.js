@@ -78,7 +78,7 @@ const csvAssistantConfig = {
     info:
       "Prompt kopieren → LLM öffnen (z. B. ChatGPT) → Prompt eingeben → alle gewünschten Produkte als Fließtext darunter einfügen (z. B. aus Webseiten kopiert) → Run klicken → CSV herunterladen → hier hochladen.",
     prompt:
-      "Erstelle eine CSV-Datei zum Download (kein Fließtext). Nutze exakt die Spalten: name,vendor,summary,price,note. Unten folgen Produktinformationen als Fließtext. Extrahiere alle Produkte in eine saubere CSV mit einer Zeile pro Produkt.",
+      "Erstelle eine CSV-Datei zum Download (kein Fließtext). Nutze exakt die Spalten: name,vendor,summary,price,note. Pflichtfelder sind name,vendor,price; summary und note sind optional. Unten folgen Produktinformationen als Fließtext. Extrahiere alle Produkte in eine saubere CSV mit einer Zeile pro Produkt.",
   },
 };
 let editingRequirementId = null;
@@ -341,17 +341,21 @@ function renderRequirements() {
       const weight = getRequirementWeight(req);
       return `
         <article class="list-item">
-          <div>
-            <h3>${escapeHtml(req.title)}</h3>
+          <div class="item-content">
+            <div class="item-topline">
+              <h3>${escapeHtml(req.title)}</h3>
+              <div class="item-badges">
+                <span class="pill ${req.type}">${labelType(req.type)}</span>
+                <span class="pill ${req.priority}">${labelPriority(req.priority)}</span>
+              </div>
+            </div>
             <p class="meta">${escapeHtml(req.description)}</p>
             <p class="meta">Kategorie: ${escapeHtml(req.category)} | Gewicht: ${weight.toFixed(1)}</p>
             ${req.note ? `<p class="meta">Notiz: ${escapeHtml(req.note)}</p>` : ""}
-          </div>
-          <div class="item-actions">
-            <span class="pill ${req.type}">${labelType(req.type)}</span>
-            <span class="pill ${req.priority}">${labelPriority(req.priority)}</span>
-            <button class="icon-btn" type="button" data-edit-req="${req.id}" aria-label="Anforderung bearbeiten">✏️</button>
-            <button class="icon-btn danger" type="button" data-remove-req="${req.id}" aria-label="Anforderung löschen">🗑️</button>
+            <div class="item-actions item-actions-bottom">
+              <button class="icon-btn" type="button" data-edit-req="${req.id}" aria-label="Anforderung bearbeiten">✏️</button>
+              <button class="icon-btn danger" type="button" data-remove-req="${req.id}" aria-label="Anforderung löschen">🗑️</button>
+            </div>
           </div>
         </article>
       `;
@@ -396,16 +400,16 @@ function renderProducts() {
     .map(
       (prd) => `
       <article class="list-item">
-        <div>
+        <div class="item-content">
           <h3>${escapeHtml(prd.name)}</h3>
           <p class="meta">Hersteller: ${escapeHtml(prd.vendor)}</p>
-          <p class="meta">${escapeHtml(prd.summary)}</p>
+          ${prd.summary ? `<p class="meta">${escapeHtml(prd.summary)}</p>` : ""}
           ${prd.price ? `<p class="meta">Preis: ${escapeHtml(prd.price)}</p>` : ""}
           ${prd.note ? `<p class="meta">Notiz: ${escapeHtml(prd.note)}</p>` : ""}
-        </div>
-        <div class="item-actions">
-          <button class="icon-btn" type="button" data-edit-prd="${prd.id}" aria-label="Produkt bearbeiten">✏️</button>
-          <button class="icon-btn danger" type="button" data-remove-prd="${prd.id}" aria-label="Produkt löschen">🗑️</button>
+          <div class="item-actions item-actions-bottom">
+            <button class="icon-btn" type="button" data-edit-prd="${prd.id}" aria-label="Produkt bearbeiten">✏️</button>
+            <button class="icon-btn danger" type="button" data-remove-prd="${prd.id}" aria-label="Produkt löschen">🗑️</button>
+          </div>
         </div>
       </article>
     `
@@ -485,70 +489,10 @@ function renderResults() {
   }
 
   const evaluation = evaluateProducts();
-  const winnerId = evaluation.ranking[0]?.id;
-
-  const cards = evaluation.ranking
-    .map((item, idx) => {
-      const excluded = item.failedCritical.length > 0;
-      return `
-        <article class="score-card ${winnerId === item.id && !excluded ? "winner" : ""}">
-          <h3>${idx + 1}. ${escapeHtml(item.name)}</h3>
-          <p class="meta">Anforderungs-Punkte: <strong>${item.points.toFixed(2)}</strong> / ${evaluation.maxPoints.toFixed(2)}</p>
-          <p class="meta">Erfüllung: <strong>${item.percent.toFixed(1)}%</strong></p>
-          <p class="meta">Preis: <strong>${item.priceRaw || "k. A."}</strong></p>
-          <p class="${excluded ? "status-bad" : "status-ok"}">
-            ${excluded ? "Ausgeschlossen (zwingende Anforderung nicht erfüllt)" : "Zulässig"}
-          </p>
-        </article>
-      `;
-    })
-    .join("");
-
-  const qualified = evaluation.ranking.filter((item) => !item.excluded);
-  const chartRows = qualified.length
-    ? qualified
-        .map((item) => {
-          const finalWidth = Math.max(0, Math.min(100, item.finalScore));
-          const functionalWidth = Math.max(0, Math.min(100, item.percent));
-          const priceWidth = Math.max(0, Math.min(100, item.priceScore));
-          return `
-            <div class="chart-row">
-              <div class="chart-label">${escapeHtml(item.name)}</div>
-              <div class="chart-bars">
-                <div class="bar final" style="width:${finalWidth}%">Gesamt ${finalWidth.toFixed(1)}%</div>
-                <div class="bar functional" style="width:${functionalWidth}%">Anforderung ${functionalWidth.toFixed(1)}%</div>
-                <div class="bar price" style="width:${priceWidth}%">Preis ${priceWidth.toFixed(1)}%</div>
-              </div>
-            </div>
-          `;
-        })
-        .join("")
-    : "<p class='meta'>Keine zulässigen Produkte für die Preis-Gesamtauswertung vorhanden.</p>";
-
-  const detailsRows = evaluation.ranking
-    .map((item, idx) => {
-      const failed = item.failedCritical.length ? item.failedCritical.map((r) => escapeHtml(r)).join(", ") : "Keine";
-      return `
-        <tr>
-          <td>${idx + 1}</td>
-          <td>${escapeHtml(item.name)}</td>
-          <td>${item.points.toFixed(2)}</td>
-          <td>${item.percent.toFixed(1)}%</td>
-          <td>${item.priceScore.toFixed(1)}%</td>
-          <td>${item.finalScore.toFixed(1)}%</td>
-          <td>${item.failedCritical.length ? `<span class='status-bad'>${failed}</span>` : `<span class='status-ok'>Keine</span>`}</td>
-        </tr>
-      `;
-    })
-    .join("");
-
-  const winner = evaluation.ranking.find((i) => i.id === winnerId);
-  const winnerText = winner
-    ? `<p><strong>Bestes Produkt:</strong> ${escapeHtml(winner.name)} (${winner.finalScore.toFixed(1)}% Gesamt)</p>`
-    : "<p>Kein Gewinner vorhanden.</p>";
+  const requirementCharts = buildRequirementCharts(evaluation);
+  const overallChart = buildOverallChart(evaluation);
 
   resultsContent.innerHTML = `
-    <div class="result-grid">${cards}</div>
     <div class="price-weight-box">
       <label>
         Preis-Relevanz in der Gesamtauswertung: <strong><span id="priceWeightValue">${evaluation.priceWeight}%</span></strong>
@@ -556,25 +500,14 @@ function renderResults() {
       </label>
       <p class="meta">0% = nur Anforderungserfüllung, 100% = nur Preisvergleich.</p>
     </div>
-    ${winnerText}
-    <div class="beautiful-chart" id="beautifulChart">
-      <h3>Grafische Gesamtauswertung (inkl. Preisfaktor)</h3>
-      ${chartRows}
+    <div class="beautiful-chart">
+      <h3>Erfüllung pro Anforderung (Säulendiagramme)</h3>
+      ${requirementCharts}
     </div>
-    <table>
-      <thead>
-        <tr>
-          <th>Ranking</th>
-          <th>Produkt</th>
-          <th>Punkte</th>
-          <th>Anforderungen</th>
-          <th>Preis-Score</th>
-          <th>Gesamt-Score</th>
-          <th>Zwingende nicht erfüllt</th>
-        </tr>
-      </thead>
-      <tbody>${detailsRows}</tbody>
-    </table>
+    <div class="beautiful-chart" id="beautifulChart">
+      <h3>Gesamtauswertung je Produkt (inkl. Preisfaktor)</h3>
+      ${overallChart}
+    </div>
   `;
 
   const priceWeightSlider = document.getElementById("priceWeightSlider");
@@ -600,7 +533,7 @@ function evaluateProducts() {
 
       points += reqWeight * factor;
 
-      if (req.priority === "critical" && rating !== "full") {
+      if (req.priority === "critical" && rating === "none") {
         failedCritical.push(req.title);
       }
     });
@@ -652,20 +585,68 @@ function evaluateProducts() {
   return { maxPoints, ranking: ranked, priceWeight };
 }
 
+function buildRequirementCharts(evaluation, compact = false) {
+  if (!state.requirements.length || !state.products.length) {
+    return "<p class='meta'>Keine Daten für Anforderungsdiagramme vorhanden.</p>";
+  }
+
+  const byProduct = new Map(evaluation.ranking.map((item) => [item.id, item]));
+  return state.requirements
+    .map((req) => {
+      const bars = state.products
+        .map((prd) => {
+          const rating = state.ratings[ratingKey(req.id, prd.id)] || "na";
+          const percent = (RATING_FACTOR[rating] ?? 0) * 100;
+          const safeHeight = Math.max(4, Math.min(100, percent));
+          const excludedClass = byProduct.get(prd.id)?.excluded ? " excluded" : "";
+          return `
+            <div class="mini-chart-col">
+              <div class="mini-chart-track">
+                <div class="mini-chart-fill${excludedClass}" style="height:${safeHeight}%">${percent.toFixed(0)}%</div>
+              </div>
+              <div class="mini-chart-label">${escapeHtml(prd.name)}</div>
+            </div>
+          `;
+        })
+        .join("");
+
+      const compactStyle = compact ? " style='break-inside:avoid;margin-bottom:12px;'" : "";
+      return `
+        <article class="requirement-chart"${compactStyle}>
+          <h4>${escapeHtml(req.title)}</h4>
+          <div class="mini-chart-grid">${bars}</div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function buildOverallChart(evaluation) {
+  const qualified = evaluation.ranking.filter((item) => !item.excluded);
+  if (!qualified.length) {
+    return "<p class='meta'>Keine zulässigen Produkte für die Gesamtauswertung vorhanden.</p>";
+  }
+
+  return qualified
+    .map((item) => `
+      <div class="chart-row">
+        <div class="chart-label">${escapeHtml(item.name)}</div>
+        <div class="chart-bars">
+          <div class="bar final" style="width:${Math.max(2, Math.min(100, item.finalScore))}%">Gesamt ${item.finalScore.toFixed(1)}%</div>
+          <div class="bar functional" style="width:${Math.max(2, Math.min(100, item.percent))}%">Anforderung ${item.percent.toFixed(1)}%</div>
+          <div class="bar price" style="width:${Math.max(2, Math.min(100, item.priceScore))}%">Preis ${item.priceScore.toFixed(1)}%</div>
+        </div>
+      </div>
+    `)
+    .join("");
+}
+
 function buildPdfReportNode() {
   const wrapper = document.createElement("div");
   const evaluation = evaluateProducts();
   const date = new Date().toLocaleDateString("de-DE");
-  const topProducts = evaluation.ranking.filter((item) => !item.excluded).slice(0, 2);
-  const chartRows = topProducts
-    .map(
-      (item) => `
-      <div style="margin-bottom:10px;">
-        <div style="font-weight:600;margin-bottom:4px;">${escapeHtml(item.name)}</div>
-        <div style="height:24px;background:#dbeafe;border-radius:8px;width:${Math.max(1, Math.min(100, item.finalScore))}%;padding:3px 8px;color:#1e3a8a;">Gesamt ${item.finalScore.toFixed(1)}%</div>
-      </div>`
-    )
-    .join("");
+  const productList = state.products.map((prd) => `<li><strong>${escapeHtml(prd.name)}</strong> – ${escapeHtml(prd.vendor)} – ${escapeHtml(prd.price || "k. A.")}</li>`).join("");
+  const requirementCharts = buildRequirementCharts(evaluation, true);
 
   wrapper.style.padding = "16px";
   wrapper.style.fontFamily = "Inter, Arial, sans-serif";
@@ -674,18 +655,12 @@ function buildPdfReportNode() {
     <h1 style="margin-bottom:4px;">${escapeHtml(getProjectName())}</h1>
     <p style="margin-top:0;color:#6b7280;">Evaluation Report – ${date}</p>
 
-    <h2>Top 2 Produkte</h2>
+    <h2>Produkte</h2>
     <ul>
-      ${topProducts.map((item) => `<li><strong>${escapeHtml(item.name)}</strong> – Gesamt ${item.finalScore.toFixed(1)}%</li>`).join("") || "<li>Keine zulässigen Produkte vorhanden.</li>"}
+      ${productList || "<li>Keine Produkte vorhanden.</li>"}
     </ul>
-
-    <h2>Anforderungen (nur Titel)</h2>
-    <ul>
-      ${state.requirements.map((req) => `<li>${escapeHtml(req.title)}</li>`).join("")}
-    </ul>
-
-    <h2>Grafische Auswertung</h2>
-    ${chartRows || "<p>Keine Grafik verfügbar.</p>"}
+    <h2>Säulendiagramme je Anforderung</h2>
+    ${requirementCharts || "<p>Keine Grafik verfügbar.</p>"}
   `;
 
   return wrapper;
@@ -734,12 +709,12 @@ function rowsToRequirements(rows) {
 }
 
 function rowsToProducts(rows) {
-  const requiredHeaders = ["name", "vendor", "summary"];
+  const requiredHeaders = ["name", "vendor", "price"];
   ensureHeaders(rows.headers, requiredHeaders, "Produkte");
 
   const rowsWithoutEmpty = rows.data.filter((entry) => Object.values(entry).some((value) => value.trim() !== ""));
   const imported = rowsWithoutEmpty.map((entry, idx) => {
-    if (!entry.name.trim() || !entry.vendor.trim() || !entry.summary.trim()) {
+    if (!entry.name.trim() || !entry.vendor.trim() || !entry.price.trim()) {
       throw new Error(`Produkte CSV: Pflichtfeld leer in Zeile ${idx + 2}.`);
     }
 
@@ -747,7 +722,7 @@ function rowsToProducts(rows) {
       id: makeId("prd"),
       name: entry.name.trim(),
       vendor: entry.vendor.trim(),
-      summary: entry.summary.trim(),
+      summary: (entry.summary || "").trim(),
       price: (entry.price || "").trim(),
       note: (entry.note || "").trim(),
     };
@@ -937,7 +912,7 @@ function rowsToProjectState(rows) {
   });
 
   const products = Array.from(productsMap.values()).map((prd, idx) => {
-    if (!prd.name || !prd.vendor || !prd.summary) {
+    if (!prd.name || !prd.vendor || !prd.price) {
       throw new Error(`Projekt CSV: Unvollständiges Produkt in Block ${idx + 1}.`);
     }
     return prd;
