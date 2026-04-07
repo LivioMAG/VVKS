@@ -45,70 +45,94 @@ const requirementsCsvInput = document.getElementById("requirementsCsvInput");
 const downloadProductsTemplateBtn = document.getElementById("downloadProductsTemplateBtn");
 const uploadProductsCsvBtn = document.getElementById("uploadProductsCsvBtn");
 const productsCsvInput = document.getElementById("productsCsvInput");
-const onboardingCard = document.getElementById("onboardingCard");
-const startOnboardingBtn = document.getElementById("startOnboardingBtn");
-const onboardingDialog = document.getElementById("onboardingDialog");
-const onboardingStepTitle = document.getElementById("onboardingStepTitle");
-const onboardingStepText = document.getElementById("onboardingStepText");
-const onboardingPromptBox = document.getElementById("onboardingPromptBox");
-const onboardingDownloadBtn = document.getElementById("onboardingDownloadBtn");
-const onboardingUploadBtn = document.getElementById("onboardingUploadBtn");
-const onboardingNextBtn = document.getElementById("onboardingNextBtn");
-const onboardingCloseBtn = document.getElementById("onboardingCloseBtn");
+const startRequirementsWorkflowBtn = document.getElementById("startRequirementsWorkflowBtn");
+const startProductsWorkflowBtn = document.getElementById("startProductsWorkflowBtn");
+const workflowDialog = document.getElementById("workflowDialog");
+const workflowStepTitle = document.getElementById("workflowStepTitle");
+const workflowStepText = document.getElementById("workflowStepText");
+const workflowPromptBox = document.getElementById("workflowPromptBox");
+const workflowDownloadBtn = document.getElementById("workflowDownloadBtn");
+const workflowUploadBtn = document.getElementById("workflowUploadBtn");
+const workflowNextBtn = document.getElementById("workflowNextBtn");
+const workflowCloseBtn = document.getElementById("workflowCloseBtn");
+const requirementsContent = document.getElementById("requirementsContent");
+const productsContent = document.getElementById("productsContent");
+const toggleRequirementsBtn = document.getElementById("toggleRequirementsBtn");
+const toggleProductsBtn = document.getElementById("toggleProductsBtn");
 
-const onboardingSteps = [
-  { title: "Schritt 1 von 5", text: "Hey, zuerst die CSV-Datei herunterladen.", showDownload: true, nextLabel: "Weiter", needsAction: true },
-  {
-    title: "Schritt 2 von 5",
-    text: "Gehe in deine Konzeptionierung und füge alle betrieblichen Anforderungen zusammen mit der CSV-Datei bei ChatGPT ein.",
-    nextLabel: "Weiter",
+const workflowConfig = {
+  requirements: {
+    label: "Anforderungen",
+    prompt:
+      "Erstelle eine CSV-Datei zum Download (kein Fließtext). Nutze exakt die Spalten: title,category,description,type,priority,note. type nur must/nice, priority nur critical/high/medium/low.",
+    downloadAction: () => downloadRequirementsTemplateBtn.click(),
+    uploadAction: () => uploadRequirementsCsvBtn.click(),
   },
-  {
-    title: "Schritt 3 von 5",
-    text: "Nutze den folgenden Prompt, damit die Anforderungen kategorisiert und nicht als Fließtext ausgegeben werden.",
-    showPrompt: true,
-    nextLabel: "Weiter",
+  products: {
+    label: "Produkte",
+    prompt:
+      "Erstelle eine CSV-Datei zum Download (kein Fließtext). Nutze exakt die Spalten: name,vendor,summary,price,note.",
+    downloadAction: () => downloadProductsTemplateBtn.click(),
+    uploadAction: () => uploadProductsCsvBtn.click(),
   },
-  { title: "Schritt 4 von 5", text: "Hier ist Ihr Upload: Klicke auf Upload und lade nur die Anforderungen hoch.", showUpload: true, nextLabel: "Weiter", needsAction: true },
-  { title: "Schritt 5 von 5", text: "Evaluation jetzt starten: Du hast bereits die ersten Daten erhalten.", nextLabel: "Fertig" },
+};
+
+const workflowSteps = [
+  { title: "Schritt 1 von 4", text: "Lade zuerst das passende CSV-Template herunter.", showDownload: true, nextLabel: "Weiter", needsAction: true, action: "download" },
+  { title: "Schritt 2 von 4", text: "Kopiere den Prompt in ChatGPT und füge deine Inhalte ein.", nextLabel: "Weiter" },
+  { title: "Schritt 3 von 4", text: "Prompt für ChatGPT (inkl. Hinweis auf eine downloadbare Datei):", showPrompt: true, nextLabel: "Weiter" },
+  { title: "Schritt 4 von 4", text: "Lade jetzt die erzeugte CSV-Datei hoch.", showUpload: true, nextLabel: "Fertig", needsAction: true, action: "upload" },
 ];
-const onboardingPromptText = "Bitte strukturiere die betrieblichen Anforderungen als CSV ohne Fließtext. Nutze exakt die Spalten: title,category,description,type,priority,note. type nur must/nice, priority nur critical/high/medium/low.";
-let onboardingStepIndex = 0;
-let onboardingDownloadDone = false;
-let onboardingUploadDone = false;
+let workflowType = "requirements";
+let workflowStepIndex = 0;
+let workflowActionsDone = { download: false, upload: false };
+let editingRequirementId = null;
+let editingProductId = null;
 
 requirementForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const data = new FormData(requirementForm);
-
-  state.requirements.push({
-    id: makeId("req"),
+  const payload = {
     title: data.get("title").toString().trim(),
     description: data.get("description").toString().trim(),
     category: data.get("category").toString().trim(),
     type: data.get("type").toString(),
     priority: data.get("priority").toString(),
     note: data.get("note").toString().trim(),
-  });
+  };
+
+  if (editingRequirementId) {
+    state.requirements = state.requirements.map((req) => (req.id === editingRequirementId ? { ...req, ...payload } : req));
+    editingRequirementId = null;
+  } else {
+    state.requirements.push({ id: makeId("req"), ...payload });
+  }
 
   requirementForm.reset();
+  setFormEditingState("requirement", false);
   persistAndRender();
 });
 
 productForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const data = new FormData(productForm);
-
-  state.products.push({
-    id: makeId("prd"),
+  const payload = {
     name: data.get("name").toString().trim(),
     vendor: data.get("vendor").toString().trim(),
     summary: data.get("summary").toString().trim(),
     price: data.get("price").toString().trim(),
     note: data.get("note").toString().trim(),
-  });
+  };
+
+  if (editingProductId) {
+    state.products = state.products.map((prd) => (prd.id === editingProductId ? { ...prd, ...payload } : prd));
+    editingProductId = null;
+  } else {
+    state.products.push({ id: makeId("prd"), ...payload });
+  }
 
   productForm.reset();
+  setFormEditingState("product", false);
   persistAndRender();
 });
 
@@ -157,11 +181,12 @@ requirementsCsvInput.addEventListener("change", async () => {
     const importedRequirements = rowsToRequirements(rows);
     state.requirements = importedRequirements;
     state.ratings = {};
+    editingRequirementId = null;
+    setFormEditingState("requirement", false);
     persistAndRender();
-    onboardingUploadDone = true;
-    if (onboardingDialog.open && onboardingStepIndex === 3) {
-      onboardingStepIndex = 4;
-      updateOnboardingStep();
+    if (workflowDialog.open && workflowType === "requirements") {
+      workflowActionsDone.upload = true;
+      updateWorkflowStep();
     }
     window.alert(`${importedRequirements.length} Anforderungen erfolgreich importiert.`);
   } catch (error) {
@@ -187,7 +212,13 @@ productsCsvInput.addEventListener("change", async () => {
     const importedProducts = rowsToProducts(rows);
     state.products = importedProducts;
     state.ratings = {};
+    editingProductId = null;
+    setFormEditingState("product", false);
     persistAndRender();
+    if (workflowDialog.open && workflowType === "products") {
+      workflowActionsDone.upload = true;
+      updateWorkflowStep();
+    }
     window.alert(`${importedProducts.length} Produkte erfolgreich importiert.`);
   } catch (error) {
     window.alert(error.message);
@@ -196,33 +227,39 @@ productsCsvInput.addEventListener("change", async () => {
   }
 });
 
-if (startOnboardingBtn) {
-  startOnboardingBtn.addEventListener("click", openOnboarding);
-  onboardingCloseBtn.addEventListener("click", () => onboardingDialog.close());
-  onboardingNextBtn.addEventListener("click", () => {
-    const currentStep = onboardingSteps[onboardingStepIndex];
-    if (currentStep.needsAction && onboardingStepIndex === 0 && !onboardingDownloadDone) {
-      window.alert("Bitte zuerst die CSV-Datei herunterladen.");
-      return;
-    }
-    if (currentStep.needsAction && onboardingStepIndex === 3 && !onboardingUploadDone) {
-      window.alert("Bitte zuerst die Anforderungen hochladen.");
-      return;
-    }
+startRequirementsWorkflowBtn.addEventListener("click", () => openWorkflow("requirements"));
+startProductsWorkflowBtn.addEventListener("click", () => openWorkflow("products"));
+workflowCloseBtn.addEventListener("click", () => workflowDialog.close());
+workflowNextBtn.addEventListener("click", () => {
+  const currentStep = workflowSteps[workflowStepIndex];
+  if (currentStep.needsAction && !workflowActionsDone[currentStep.action]) {
+    window.alert("Bitte zuerst den Schritt mit dem Button ausführen.");
+    return;
+  }
 
-    if (onboardingStepIndex >= onboardingSteps.length - 1) {
-      onboardingDialog.close();
-      return;
-    }
-    onboardingStepIndex += 1;
-    updateOnboardingStep();
-  });
-  onboardingDownloadBtn.addEventListener("click", () => {
-    onboardingDownloadDone = true;
-    downloadRequirementsTemplateBtn.click();
-  });
-  onboardingUploadBtn.addEventListener("click", () => uploadRequirementsCsvBtn.click());
-}
+  if (workflowStepIndex >= workflowSteps.length - 1) {
+    workflowDialog.close();
+    return;
+  }
+  workflowStepIndex += 1;
+  updateWorkflowStep();
+});
+workflowDownloadBtn.addEventListener("click", () => {
+  workflowActionsDone.download = true;
+  workflowConfig[workflowType].downloadAction();
+  updateWorkflowStep();
+});
+workflowUploadBtn.addEventListener("click", () => workflowConfig[workflowType].uploadAction());
+
+toggleRequirementsBtn.addEventListener("click", () => {
+  requirementsContent.hidden = !requirementsContent.hidden;
+  toggleRequirementsBtn.textContent = requirementsContent.hidden ? "Maximieren" : "Minimieren";
+});
+
+toggleProductsBtn.addEventListener("click", () => {
+  productsContent.hidden = !productsContent.hidden;
+  toggleProductsBtn.textContent = productsContent.hidden ? "Maximieren" : "Minimieren";
+});
 
 function loadState() {
   const fallback = { requirements: [], products: [], ratings: {} };
@@ -246,16 +283,10 @@ function persistAndRender() {
 }
 
 function render() {
-  renderOnboardingCard();
   renderRequirements();
   renderProducts();
   renderMatrix();
   renderResults();
-}
-
-function renderOnboardingCard() {
-  const hasData = state.requirements.length > 0 || state.products.length > 0;
-  onboardingCard.hidden = hasData;
 }
 
 function renderRequirements() {
@@ -275,10 +306,11 @@ function renderRequirements() {
             <p class="meta">Kategorie: ${escapeHtml(req.category)} | Gewicht: ${weight.toFixed(1)}</p>
             ${req.note ? `<p class="meta">Notiz: ${escapeHtml(req.note)}</p>` : ""}
           </div>
-          <div>
+          <div class="item-actions">
             <span class="pill ${req.type}">${labelType(req.type)}</span>
             <span class="pill ${req.priority}">${labelPriority(req.priority)}</span>
-            <button class="btn btn-danger" data-remove-req="${req.id}">Löschen</button>
+            <button class="icon-btn" type="button" data-edit-req="${req.id}" aria-label="Anforderung bearbeiten">✏️</button>
+            <button class="icon-btn danger" type="button" data-remove-req="${req.id}" aria-label="Anforderung löschen">🗑️</button>
           </div>
         </article>
       `;
@@ -293,6 +325,22 @@ function renderRequirements() {
         if (key.startsWith(`${id}__`)) delete state.ratings[key];
       });
       persistAndRender();
+    });
+  });
+
+  document.querySelectorAll("[data-edit-req]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-edit-req");
+      const req = state.requirements.find((item) => item.id === id);
+      if (!req) return;
+      requirementForm.elements.title.value = req.title;
+      requirementForm.elements.category.value = req.category;
+      requirementForm.elements.description.value = req.description;
+      requirementForm.elements.type.value = req.type;
+      requirementForm.elements.priority.value = req.priority;
+      requirementForm.elements.note.value = req.note || "";
+      editingRequirementId = req.id;
+      setFormEditingState("requirement", true);
     });
   });
 }
@@ -314,7 +362,10 @@ function renderProducts() {
           ${prd.price ? `<p class="meta">Preis: ${escapeHtml(prd.price)}</p>` : ""}
           ${prd.note ? `<p class="meta">Notiz: ${escapeHtml(prd.note)}</p>` : ""}
         </div>
-        <button class="btn btn-danger" data-remove-prd="${prd.id}">Löschen</button>
+        <div class="item-actions">
+          <button class="icon-btn" type="button" data-edit-prd="${prd.id}" aria-label="Produkt bearbeiten">✏️</button>
+          <button class="icon-btn danger" type="button" data-remove-prd="${prd.id}" aria-label="Produkt löschen">🗑️</button>
+        </div>
       </article>
     `
     )
@@ -328,6 +379,21 @@ function renderProducts() {
         if (key.endsWith(`__${id}`)) delete state.ratings[key];
       });
       persistAndRender();
+    });
+  });
+
+  document.querySelectorAll("[data-edit-prd]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-edit-prd");
+      const product = state.products.find((item) => item.id === id);
+      if (!product) return;
+      productForm.elements.name.value = product.name;
+      productForm.elements.vendor.value = product.vendor;
+      productForm.elements.summary.value = product.summary;
+      productForm.elements.price.value = product.price || "";
+      productForm.elements.note.value = product.note || "";
+      editingProductId = product.id;
+      setFormEditingState("product", true);
     });
   });
 }
@@ -746,23 +812,31 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-function openOnboarding() {
-  onboardingStepIndex = 0;
-  onboardingDownloadDone = false;
-  onboardingUploadDone = state.requirements.length > 0;
-  updateOnboardingStep();
-  onboardingDialog.showModal();
+function openWorkflow(type) {
+  workflowType = type;
+  workflowStepIndex = 0;
+  workflowActionsDone = { download: false, upload: false };
+  updateWorkflowStep();
+  workflowDialog.showModal();
 }
 
-function updateOnboardingStep() {
-  const step = onboardingSteps[onboardingStepIndex];
-  onboardingStepTitle.textContent = step.title;
-  onboardingStepText.textContent = step.text;
-  onboardingPromptBox.hidden = !step.showPrompt;
-  onboardingPromptBox.textContent = onboardingPromptText;
-  onboardingDownloadBtn.hidden = !step.showDownload;
-  onboardingUploadBtn.hidden = !step.showUpload;
-  onboardingNextBtn.textContent = step.nextLabel;
+function updateWorkflowStep() {
+  const step = workflowSteps[workflowStepIndex];
+  const config = workflowConfig[workflowType];
+  workflowStepTitle.textContent = `${config.label}: ${step.title}`;
+  workflowStepText.textContent = step.text;
+  workflowPromptBox.hidden = !step.showPrompt;
+  workflowPromptBox.textContent = config.prompt;
+  workflowDownloadBtn.hidden = !step.showDownload;
+  workflowUploadBtn.hidden = !step.showUpload;
+  workflowUploadBtn.textContent = `${config.label} hochladen`;
+  workflowNextBtn.textContent = step.nextLabel;
+}
+
+function setFormEditingState(kind, isEditing) {
+  const form = kind === "requirement" ? requirementForm : productForm;
+  const submitBtn = form.querySelector("button[type='submit']");
+  submitBtn.textContent = isEditing ? "Änderung speichern" : kind === "requirement" ? "Anforderung hinzufügen" : "Produkt hinzufügen";
 }
 
 render();
