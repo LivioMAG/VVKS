@@ -22,6 +22,16 @@
   - `priority`: `critical`, `high`, `medium`, `low`
 - Beim Import werden bestehende Anforderungen/Produkte ersetzt und die Matrix-Bewertungen zurückgesetzt.
 
+## Bewertungsstufen in der Matrix
+
+- `Erfüllt` = `100%`
+- `Mehrheitlich erfüllt` = `66%`
+- `Teilweise erfüllt` = `93%`
+- `Nicht erfüllt` = `0%`
+- `Nicht bewertet` = `0%`
+
+Für zwingende Anforderungen (`priority = critical`) gilt ein Produkt als nicht bestanden, wenn die Bewertung `Teilweise erfüllt` oder `Nicht erfüllt` ist.
+
 
 ## Projekt-CSV (Vollimport/-export)
 

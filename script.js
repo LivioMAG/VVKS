@@ -17,13 +17,15 @@ const TYPE_FACTOR = {
 
 const RATING_FACTOR = {
   full: 1,
-  partial: 0.5,
+  mostly: 0.66,
+  partial: 0.93,
   none: 0,
   na: 0,
 };
 
 const RATING_LABELS = {
   full: "Erfüllt",
+  mostly: "Mehrheitlich erfüllt",
   partial: "Teilweise erfüllt",
   none: "Nicht erfüllt",
   na: "Nicht bewertet",
@@ -564,7 +566,7 @@ function evaluateProducts() {
 
       points += reqWeight * factor;
 
-      if (req.priority === "critical" && rating === "none") {
+      if (req.priority === "critical" && ["partial", "none"].includes(rating)) {
         failedCritical.push(req.title);
       }
     });
@@ -635,7 +637,7 @@ function buildRequirementCharts(evaluation, compact = false) {
           const rating = state.ratings[ratingKey(req.id, prd.id)] || "na";
           const percent = (RATING_FACTOR[rating] ?? 0) * 100;
           const safeHeight = Math.max(4, Math.min(100, percent));
-          const failedCriticalClass = req.priority === "critical" && rating === "none" ? " failed-critical" : "";
+          const failedCriticalClass = req.priority === "critical" && ["partial", "none"].includes(rating) ? " failed-critical" : "";
           return `
             <div class="mini-chart-col">
               <div class="mini-chart-track">
