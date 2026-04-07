@@ -231,8 +231,8 @@ textarea {
   white-space: nowrap;
 }
 
-.bar.final { background: #93c5fd; }
-.bar.functional { background: #bfdbfe; }
+.bar.final { background: #86efac; }
+.bar.functional { background: #d1d5db; }
 .bar.price { background: #fde68a; }
 
 .list {

@@ -622,20 +622,20 @@ function buildRequirementCharts(evaluation, compact = false) {
 }
 
 function buildOverallChart(evaluation) {
-  const qualified = evaluation.ranking.filter((item) => !item.excluded);
-  if (!qualified.length) {
-    return "<p class='meta'>Keine zulässigen Produkte für die Gesamtauswertung vorhanden.</p>";
+  if (!evaluation.ranking.length) {
+    return "<p class='meta'>Keine Produkte für die Gesamtauswertung vorhanden.</p>";
   }
 
-  return qualified
+  return evaluation.ranking
     .map((item) => `
       <div class="chart-row">
-        <div class="chart-label">${escapeHtml(item.name)}</div>
+        <div class="chart-label ${item.excluded ? "muted-product" : ""}">${escapeHtml(item.name)}</div>
         <div class="chart-bars">
-          <div class="bar final" style="width:${Math.max(2, Math.min(100, item.finalScore))}%">Gesamt ${item.finalScore.toFixed(1)}%</div>
-          <div class="bar functional" style="width:${Math.max(2, Math.min(100, item.percent))}%">Anforderung ${item.percent.toFixed(1)}%</div>
-          <div class="bar price" style="width:${Math.max(2, Math.min(100, item.priceScore))}%">Preis ${item.priceScore.toFixed(1)}%</div>
+          <div class="bar final ${item.excluded ? "excluded" : ""}" style="width:${Math.max(2, Math.min(100, item.finalScore))}%">Gesamt ${item.finalScore.toFixed(1)}%</div>
+          <div class="bar functional ${item.excluded ? "excluded" : ""}" style="width:${Math.max(2, Math.min(100, item.percent))}%">Anforderung ${item.percent.toFixed(1)}%</div>
+          <div class="bar price ${item.excluded ? "excluded" : ""}" style="width:${Math.max(2, Math.min(100, item.priceScore))}%">Preis ${item.priceScore.toFixed(1)}%</div>
         </div>
+        ${item.excluded ? "<p class='meta excluded-note'>Hat eine zwingende Anforderung nicht erfüllt.</p>" : ""}
       </div>
     `)
     .join("");
@@ -646,7 +646,6 @@ function buildPdfReportNode() {
   const evaluation = evaluateProducts();
   const date = new Date().toLocaleDateString("de-DE");
   const headingColor = "#2f7d32";
-  const accentColor = "#67a95c";
   const productList = state.products
     .map((prd) => `<li><strong>${escapeHtml(prd.name)}</strong> – ${escapeHtml(prd.vendor)} – ${escapeHtml(formatPriceCHF(prd.price || "k. A."))}</li>`)
     .join("");
@@ -658,88 +657,126 @@ function buildPdfReportNode() {
   wrapper.innerHTML = `
     <style>
       .pdf-page {
-        min-height: 260mm;
-        padding: 34mm 12mm 26mm 12mm;
+        min-height: 277mm;
+        padding: 42mm 14mm 14mm 14mm;
         box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        gap: 8mm;
+      }
+      .pdf-page-content {
+        flex: 1;
       }
       .pdf-page + .pdf-page {
         page-break-before: always;
       }
-      .pdf-fixed-header {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 24mm;
-        padding: 7mm 12mm 4mm 12mm;
-        border-bottom: 1px solid #cbd5e1;
+      .pdf-title-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        background: #ffffff;
+        gap: 8mm;
       }
-      .pdf-fixed-footer {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        min-height: 16mm;
-        padding: 3mm 12mm 6mm 12mm;
-        border-top: 1px solid #cbd5e1;
+      .pdf-footer {
+        margin-top: auto;
+        padding: 4mm 0 0;
         display: flex;
         justify-content: space-between;
         gap: 8mm;
-        background: #ffffff;
+        border-top: 1px solid #d7dee8;
+        background: #f1f3f5;
         font-size: 10px;
         line-height: 1.35;
+        color: #475569;
       }
+      .pdf-footer-left,
+      .pdf-footer-right {
+        padding: 4mm 5mm;
+      }
+      .pdf-footer-right { text-align: right; color: #334155; }
+      .pdf-muted { color: #64748b; }
+      .chart-row { margin-bottom: 7px; }
+      .chart-label { font-size: 11px; font-weight: 600; margin-bottom: 2px; }
+      .chart-label.muted-product { color: #7c8798; }
+      .chart-bars { display: grid; gap: 5px; }
+      .bar {
+        border-radius: 9px;
+        font-size: 10px;
+        padding: 4px 8px;
+        color: #0f172a;
+      }
+      .bar.final { background: #86efac; }
+      .bar.functional { background: #d1d5db; }
+      .bar.price { background: #fde68a; }
+      .bar.excluded { background: #d1d5db; color: #4b5563; }
+      .excluded-note { margin-top: 4px; color: #6b7280; font-size: 10px; }
+      .requirement-chart { border: none; border-radius: 0; padding: 0; margin: 0 0 12px; background: transparent; }
+      .requirement-chart h4 { margin: 0 0 6px; font-size: 12px; font-weight: 600; }
+      .mini-chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); gap: 8px; }
+      .mini-chart-track { background: #e5e7eb; border-radius: 8px; min-height: 90px; }
+      .mini-chart-fill { background: #d1d5db; font-size: 9px; }
+      .mini-chart-fill.failed-critical { background: #9ca3af; color: #111827; }
+      .mini-chart-label { font-size: 9px; color: #475569; }
     </style>
 
-    <div class="pdf-fixed-header">
-      <div style="font-size:11px;font-weight:600;color:#0f172a;">
-        Verein Kooperative Speicherbibliothek Schweiz
-      </div>
-      <img
-        src="logo.PNG"
-        alt="Logo"
-        style="max-width:120px;max-height:48px;object-fit:contain;"
-        onerror="this.onerror=null;this.src='Logo.png';"
-      />
-    </div>
-
-    <div class="pdf-fixed-footer">
-      <div style="text-align:left;">
-        Verein Kooperative Speicherbibliothek Schweiz, Grammat 15, 62333 Büren
-      </div>
-      <div style="text-align:right;">
-        <div>Maik, Marci, Tel 041 932 0000</div>
-        <div>maik.maerci@speicherbibliothek.ch</div>
-        <div>www.speicherbibliothek.ch</div>
-      </div>
-    </div>
-
     <section class="pdf-page">
-      <h1 style="margin:0 0 2px 0;color:${headingColor};">${escapeHtml(getProjectName())}</h1>
-      <p style="margin:0;font-size:20px;font-weight:700;color:${headingColor};">Evaluation Report</p>
-      <p style="margin:2px 0 16px 0;color:#475569;">Datum: ${date}</p>
-      <h2 style="color:${headingColor};border-left:4px solid ${accentColor};padding-left:8px;">Produkte</h2>
-      <ul>
-        ${productList || "<li>Keine Produkte vorhanden.</li>"}
-      </ul>
+      <div class="pdf-page-content">
+        <div class="pdf-title-row">
+          <div>
+            <h1 style="margin:0 0 2px 0;color:${headingColor};">${escapeHtml(getProjectName())}</h1>
+            <p style="margin:0;font-size:20px;font-weight:700;color:${headingColor};">Evaluation Rapport</p>
+            <p style="margin:2px 0 16px 0;color:#475569;">Datum: ${date}</p>
+          </div>
+          <img
+            src="logo.PNG"
+            alt="Logo"
+            style="max-width:140px;max-height:56px;object-fit:contain;"
+            onerror="this.onerror=null;this.src='Logo.png';"
+          />
+        </div>
+        <h2 style="color:${headingColor};padding-left:2px;margin:0 0 4mm;">Produkte</h2>
+        <ul class="pdf-muted">
+          ${productList || "<li>Keine Produkte vorhanden.</li>"}
+        </ul>
+      </div>
+      ${buildPdfFooter()}
     </section>
 
     <section class="pdf-page">
-      <h2 style="color:${headingColor};border-left:4px solid ${accentColor};padding-left:8px;">Gesamtauswertung</h2>
-      ${overallChart || "<p>Keine Gesamtauswertung verfügbar.</p>"}
+      <div class="pdf-page-content">
+        <h2 style="color:${headingColor};padding-left:2px;margin:0 0 4mm;">Gesamtauswertung</h2>
+        ${overallChart || "<p>Keine Gesamtauswertung verfügbar.</p>"}
+      </div>
+      ${buildPdfFooter()}
     </section>
 
     <section class="pdf-page">
-      <h2 style="color:${headingColor};border-left:4px solid ${accentColor};padding-left:8px;">Säulendiagramme je Anforderung</h2>
-      ${requirementCharts || "<p>Keine Grafik verfügbar.</p>"}
+      <div class="pdf-page-content">
+        <h2 style="color:${headingColor};padding-left:2px;margin:0 0 4mm;">Säulendiagramme je Anforderung</h2>
+        ${requirementCharts || "<p>Keine Grafik verfügbar.</p>"}
+      </div>
+      ${buildPdfFooter()}
     </section>
   `;
 
   return wrapper;
+}
+
+function buildPdfFooter() {
+  return `
+    <div class="pdf-footer">
+      <div class="pdf-footer-left">
+        <div>Verein Kooperative Speicherbibliothek Schweiz</div>
+        <div>Grammattenstrasse 15</div>
+        <div>CH-6233 Büron</div>
+      </div>
+      <div class="pdf-footer-right">
+        <div><strong>Mike Märki</strong></div>
+        <div>Tel. 041 932 00 00</div>
+        <div>mike.maerki@speicherbibliothek.ch</div>
+        <div>www.speicherbibliothek.ch</div>
+      </div>
+    </div>
+  `;
 }
 
 function getRequirementWeight(req) {
