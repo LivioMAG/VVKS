@@ -145,6 +145,18 @@ textarea {
   color: #991b1b;
 }
 
+.btn-ghost {
+  background: #eff6ff;
+  color: #1e40af;
+}
+
+.csv-actions {
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.9rem;
+}
+
 .list {
   display: grid;
   gap: 0.55rem;
