@@ -45,6 +45,37 @@ const requirementsCsvInput = document.getElementById("requirementsCsvInput");
 const downloadProductsTemplateBtn = document.getElementById("downloadProductsTemplateBtn");
 const uploadProductsCsvBtn = document.getElementById("uploadProductsCsvBtn");
 const productsCsvInput = document.getElementById("productsCsvInput");
+const onboardingCard = document.getElementById("onboardingCard");
+const startOnboardingBtn = document.getElementById("startOnboardingBtn");
+const onboardingDialog = document.getElementById("onboardingDialog");
+const onboardingStepTitle = document.getElementById("onboardingStepTitle");
+const onboardingStepText = document.getElementById("onboardingStepText");
+const onboardingPromptBox = document.getElementById("onboardingPromptBox");
+const onboardingDownloadBtn = document.getElementById("onboardingDownloadBtn");
+const onboardingUploadBtn = document.getElementById("onboardingUploadBtn");
+const onboardingNextBtn = document.getElementById("onboardingNextBtn");
+const onboardingCloseBtn = document.getElementById("onboardingCloseBtn");
+
+const onboardingSteps = [
+  { title: "Schritt 1 von 5", text: "Hey, zuerst die CSV-Datei herunterladen.", showDownload: true, nextLabel: "Weiter", needsAction: true },
+  {
+    title: "Schritt 2 von 5",
+    text: "Gehe in deine Konzeptionierung und füge alle betrieblichen Anforderungen zusammen mit der CSV-Datei bei ChatGPT ein.",
+    nextLabel: "Weiter",
+  },
+  {
+    title: "Schritt 3 von 5",
+    text: "Nutze den folgenden Prompt, damit die Anforderungen kategorisiert und nicht als Fließtext ausgegeben werden.",
+    showPrompt: true,
+    nextLabel: "Weiter",
+  },
+  { title: "Schritt 4 von 5", text: "Hier ist Ihr Upload: Klicke auf Upload und lade nur die Anforderungen hoch.", showUpload: true, nextLabel: "Weiter", needsAction: true },
+  { title: "Schritt 5 von 5", text: "Evaluation jetzt starten: Du hast bereits die ersten Daten erhalten.", nextLabel: "Fertig" },
+];
+const onboardingPromptText = "Bitte strukturiere die betrieblichen Anforderungen als CSV ohne Fließtext. Nutze exakt die Spalten: title,category,description,type,priority,note. type nur must/nice, priority nur critical/high/medium/low.";
+let onboardingStepIndex = 0;
+let onboardingDownloadDone = false;
+let onboardingUploadDone = false;
 
 requirementForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -127,6 +158,11 @@ requirementsCsvInput.addEventListener("change", async () => {
     state.requirements = importedRequirements;
     state.ratings = {};
     persistAndRender();
+    onboardingUploadDone = true;
+    if (onboardingDialog.open && onboardingStepIndex === 3) {
+      onboardingStepIndex = 4;
+      updateOnboardingStep();
+    }
     window.alert(`${importedRequirements.length} Anforderungen erfolgreich importiert.`);
   } catch (error) {
     window.alert(error.message);
@@ -160,6 +196,34 @@ productsCsvInput.addEventListener("change", async () => {
   }
 });
 
+if (startOnboardingBtn) {
+  startOnboardingBtn.addEventListener("click", openOnboarding);
+  onboardingCloseBtn.addEventListener("click", () => onboardingDialog.close());
+  onboardingNextBtn.addEventListener("click", () => {
+    const currentStep = onboardingSteps[onboardingStepIndex];
+    if (currentStep.needsAction && onboardingStepIndex === 0 && !onboardingDownloadDone) {
+      window.alert("Bitte zuerst die CSV-Datei herunterladen.");
+      return;
+    }
+    if (currentStep.needsAction && onboardingStepIndex === 3 && !onboardingUploadDone) {
+      window.alert("Bitte zuerst die Anforderungen hochladen.");
+      return;
+    }
+
+    if (onboardingStepIndex >= onboardingSteps.length - 1) {
+      onboardingDialog.close();
+      return;
+    }
+    onboardingStepIndex += 1;
+    updateOnboardingStep();
+  });
+  onboardingDownloadBtn.addEventListener("click", () => {
+    onboardingDownloadDone = true;
+    downloadRequirementsTemplateBtn.click();
+  });
+  onboardingUploadBtn.addEventListener("click", () => uploadRequirementsCsvBtn.click());
+}
+
 function loadState() {
   const fallback = { requirements: [], products: [], ratings: {} };
   try {
@@ -182,10 +246,16 @@ function persistAndRender() {
 }
 
 function render() {
+  renderOnboardingCard();
   renderRequirements();
   renderProducts();
   renderMatrix();
   renderResults();
+}
+
+function renderOnboardingCard() {
+  const hasData = state.requirements.length > 0 || state.products.length > 0;
+  onboardingCard.hidden = hasData;
 }
 
 function renderRequirements() {
@@ -674,6 +744,25 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function openOnboarding() {
+  onboardingStepIndex = 0;
+  onboardingDownloadDone = false;
+  onboardingUploadDone = state.requirements.length > 0;
+  updateOnboardingStep();
+  onboardingDialog.showModal();
+}
+
+function updateOnboardingStep() {
+  const step = onboardingSteps[onboardingStepIndex];
+  onboardingStepTitle.textContent = step.title;
+  onboardingStepText.textContent = step.text;
+  onboardingPromptBox.hidden = !step.showPrompt;
+  onboardingPromptBox.textContent = onboardingPromptText;
+  onboardingDownloadBtn.hidden = !step.showDownload;
+  onboardingUploadBtn.hidden = !step.showUpload;
+  onboardingNextBtn.textContent = step.nextLabel;
 }
 
 render();
