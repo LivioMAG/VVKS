@@ -416,7 +416,7 @@ td select {
   padding-top: 0.2rem;
 }
 
-.mini-chart-fill.excluded {
+.mini-chart-fill.failed-critical {
   background: #fecaca;
   color: #7f1d1d;
 }

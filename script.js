@@ -404,7 +404,7 @@ function renderProducts() {
           <h3>${escapeHtml(prd.name)}</h3>
           <p class="meta">Hersteller: ${escapeHtml(prd.vendor)}</p>
           ${prd.summary ? `<p class="meta">${escapeHtml(prd.summary)}</p>` : ""}
-          ${prd.price ? `<p class="meta">Preis: ${escapeHtml(prd.price)}</p>` : ""}
+          ${prd.price ? `<p class="meta">Preis: ${escapeHtml(formatPriceCHF(prd.price))}</p>` : ""}
           ${prd.note ? `<p class="meta">Notiz: ${escapeHtml(prd.note)}</p>` : ""}
           <div class="item-actions item-actions-bottom">
             <button class="icon-btn" type="button" data-edit-prd="${prd.id}" aria-label="Produkt bearbeiten">✏️</button>
@@ -500,13 +500,13 @@ function renderResults() {
       </label>
       <p class="meta">0% = nur Anforderungserfüllung, 100% = nur Preisvergleich.</p>
     </div>
-    <div class="beautiful-chart">
-      <h3>Erfüllung pro Anforderung (Säulendiagramme)</h3>
-      ${requirementCharts}
-    </div>
     <div class="beautiful-chart" id="beautifulChart">
       <h3>Gesamtauswertung je Produkt (inkl. Preisfaktor)</h3>
       ${overallChart}
+    </div>
+    <div class="beautiful-chart">
+      <h3>Erfüllung pro Anforderung (Säulendiagramme)</h3>
+      ${requirementCharts}
     </div>
   `;
 
@@ -590,7 +590,6 @@ function buildRequirementCharts(evaluation, compact = false) {
     return "<p class='meta'>Keine Daten für Anforderungsdiagramme vorhanden.</p>";
   }
 
-  const byProduct = new Map(evaluation.ranking.map((item) => [item.id, item]));
   return state.requirements
     .map((req) => {
       const bars = state.products
@@ -598,11 +597,11 @@ function buildRequirementCharts(evaluation, compact = false) {
           const rating = state.ratings[ratingKey(req.id, prd.id)] || "na";
           const percent = (RATING_FACTOR[rating] ?? 0) * 100;
           const safeHeight = Math.max(4, Math.min(100, percent));
-          const excludedClass = byProduct.get(prd.id)?.excluded ? " excluded" : "";
+          const failedCriticalClass = req.priority === "critical" && rating === "none" ? " failed-critical" : "";
           return `
             <div class="mini-chart-col">
               <div class="mini-chart-track">
-                <div class="mini-chart-fill${excludedClass}" style="height:${safeHeight}%">${percent.toFixed(0)}%</div>
+                <div class="mini-chart-fill${failedCriticalClass}" style="height:${safeHeight}%">${percent.toFixed(0)}%</div>
               </div>
               <div class="mini-chart-label">${escapeHtml(prd.name)}</div>
             </div>
@@ -645,21 +644,37 @@ function buildPdfReportNode() {
   const wrapper = document.createElement("div");
   const evaluation = evaluateProducts();
   const date = new Date().toLocaleDateString("de-DE");
-  const productList = state.products.map((prd) => `<li><strong>${escapeHtml(prd.name)}</strong> – ${escapeHtml(prd.vendor)} – ${escapeHtml(prd.price || "k. A.")}</li>`).join("");
+  const productList = state.products
+    .map((prd) => `<li><strong>${escapeHtml(prd.name)}</strong> – ${escapeHtml(prd.vendor)} – ${escapeHtml(formatPriceCHF(prd.price || "k. A."))}</li>`)
+    .join("");
+  const overallChart = buildOverallChart(evaluation);
   const requirementCharts = buildRequirementCharts(evaluation, true);
 
   wrapper.style.padding = "16px";
   wrapper.style.fontFamily = "Inter, Arial, sans-serif";
   wrapper.style.color = "#1f2937";
   wrapper.innerHTML = `
-    <h1 style="margin-bottom:4px;">${escapeHtml(getProjectName())}</h1>
-    <p style="margin-top:0;color:#6b7280;">Evaluation Report – ${date}</p>
+    <header style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border-bottom:2px solid #dbeafe;padding-bottom:8px;margin-bottom:12px;">
+      <div>
+        <h1 style="margin:0 0 2px 0;color:#1d4ed8;">${escapeHtml(getProjectName())}</h1>
+        <p style="margin:0;font-size:20px;font-weight:700;color:#0369a1;">Evolution Report</p>
+        <p style="margin:2px 0 0 0;color:#475569;">Datum: ${date}</p>
+      </div>
+      <img
+        src="logo.PNG"
+        alt="Logo"
+        style="max-width:170px;max-height:70px;object-fit:contain;"
+        onerror="this.onerror=null;this.src='Logo.png';"
+      />
+    </header>
 
-    <h2>Produkte</h2>
+    <h2 style="color:#1d4ed8;border-left:4px solid #0ea5e9;padding-left:8px;">Produkte</h2>
     <ul>
       ${productList || "<li>Keine Produkte vorhanden.</li>"}
     </ul>
-    <h2>Säulendiagramme je Anforderung</h2>
+    <h2 style="color:#1d4ed8;border-left:4px solid #0ea5e9;padding-left:8px;">Gesamtauswertung</h2>
+    ${overallChart || "<p>Keine Gesamtauswertung verfügbar.</p>"}
+    <h2 style="color:#1d4ed8;border-left:4px solid #0ea5e9;padding-left:8px;">Säulendiagramme je Anforderung</h2>
     ${requirementCharts || "<p>Keine Grafik verfügbar.</p>"}
   `;
 
@@ -675,6 +690,12 @@ function extractPriceValue(priceText) {
   const cleaned = priceText.replace(/\./g, "").replace(",", ".");
   const match = cleaned.match(/\d+(?:\.\d+)?/);
   return match ? Number(match[0]) : Number.NaN;
+}
+
+function formatPriceCHF(priceText) {
+  const value = (priceText || "").trim();
+  if (!value || value.toLowerCase() === "k. a.") return "k. A.";
+  return /\bCHF\b/i.test(value) ? value : `${value} CHF`;
 }
 
 function rowsToRequirements(rows) {
