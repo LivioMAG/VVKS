@@ -81,41 +81,6 @@ body {
   margin: 0;
 }
 
-.section-head-actions {
-  display: flex;
-  gap: 0.4rem;
-  align-items: center;
-}
-
-.plus-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 999px;
-  font-size: 1.3rem;
-  line-height: 1;
-  padding: 0;
-}
-
-#requirementsContent,
-#productsContent {
-  display: grid;
-  gap: 0.8rem;
-}
-
-.onboarding-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.onboarding-plus {
-  width: 52px;
-  height: 52px;
-  border-radius: 999px;
-  font-size: 1.7rem;
-  line-height: 1;
-}
-
 .span-full {
   grid-column: 1 / -1;
 }
@@ -355,6 +320,5 @@ td select {
   .app-header { padding: 1.2rem 1rem; flex-direction: column; }
   .grid-form { grid-template-columns: 1fr; }
   .span-2 { grid-column: span 1; }
-  .onboarding-card { align-items: flex-start; }
   .section-head { align-items: flex-start; flex-direction: column; }
 }

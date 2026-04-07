@@ -37,15 +37,12 @@
       <section class="card">
         <div class="section-head">
           <h2>Anforderungen</h2>
-          <div class="section-head-actions">
-            <button id="startRequirementsWorkflowBtn" class="btn btn-primary plus-btn" type="button" aria-label="Workflow Anforderungen starten">+</button>
-            <button id="toggleRequirementsBtn" class="btn btn-ghost" type="button">Minimieren</button>
-          </div>
         </div>
-        <div id="requirementsContent">
         <div class="csv-actions">
           <button type="button" id="downloadRequirementsTemplateBtn" class="btn btn-ghost">CSV-Template herunterladen</button>
           <button type="button" id="uploadRequirementsCsvBtn" class="btn btn-ghost">CSV hochladen</button>
+          <button type="button" id="requirementsInfoBtn" class="btn btn-ghost">ℹ️ Info</button>
+          <button type="button" id="requirementsPromptBtn" class="btn btn-ghost">🤖 Prompt anzeigen</button>
           <input id="requirementsCsvInput" type="file" accept=".csv,text/csv" hidden />
         </div>
         <form id="requirementForm" class="grid-form">
@@ -86,21 +83,17 @@
           </div>
         </form>
         <div id="requirementsList" class="list"></div>
-        </div>
       </section>
 
       <section class="card">
         <div class="section-head">
           <h2>Produkte</h2>
-          <div class="section-head-actions">
-            <button id="startProductsWorkflowBtn" class="btn btn-primary plus-btn" type="button" aria-label="Workflow Produkte starten">+</button>
-            <button id="toggleProductsBtn" class="btn btn-ghost" type="button">Minimieren</button>
-          </div>
         </div>
-        <div id="productsContent">
         <div class="csv-actions">
           <button type="button" id="downloadProductsTemplateBtn" class="btn btn-ghost">CSV-Template herunterladen</button>
           <button type="button" id="uploadProductsCsvBtn" class="btn btn-ghost">CSV hochladen</button>
+          <button type="button" id="productsInfoBtn" class="btn btn-ghost">ℹ️ Info</button>
+          <button type="button" id="productsPromptBtn" class="btn btn-ghost">🤖 Prompt anzeigen</button>
           <input id="productsCsvInput" type="file" accept=".csv,text/csv" hidden />
         </div>
         <form id="productForm" class="grid-form">
@@ -129,7 +122,6 @@
           </div>
         </form>
         <div id="productsList" class="list"></div>
-        </div>
       </section>
 
       <section class="card span-full">
@@ -161,16 +153,13 @@
     </dialog>
     <input id="projectCsvInput" type="file" accept=".csv,text/csv" hidden />
 
-    <dialog id="workflowDialog" class="onboarding-dialog">
+    <dialog id="helperDialog" class="onboarding-dialog">
       <article>
-        <h2 id="workflowStepTitle">Schritt 1 von 4</h2>
-        <p id="workflowStepText" class="meta"></p>
-        <pre id="workflowPromptBox" class="prompt-box" hidden></pre>
+        <h2 id="helperDialogTitle">Info</h2>
+        <p id="helperDialogText" class="meta"></p>
+        <pre id="helperDialogPrompt" class="prompt-box" hidden></pre>
         <div class="dialog-actions">
-          <button id="workflowDownloadBtn" type="button" class="btn btn-secondary" hidden>CSV-Datei herunterladen</button>
-          <button id="workflowUploadBtn" type="button" class="btn btn-secondary" hidden>Datei hochladen</button>
-          <button id="workflowNextBtn" type="button" class="btn btn-primary">Weiter</button>
-          <button id="workflowCloseBtn" type="button" class="btn btn-ghost">Schließen</button>
+          <button id="helperDialogCloseBtn" type="button" class="btn btn-primary">Schließen</button>
         </div>
       </article>
     </dialog>
