@@ -694,12 +694,16 @@ function buildPdfReportNode() {
   wrapper.innerHTML = `
     <style>
       .pdf-page {
-        min-height: 277mm;
-        padding: 42mm 14mm 14mm 14mm;
+        min-height: 297mm;
+        padding: 14mm;
         box-sizing: border-box;
         display: flex;
         flex-direction: column;
         gap: 8mm;
+        position: relative;
+      }
+      .pdf-page.has-fixed-footer {
+        padding-bottom: 42mm;
       }
       .pdf-page-content {
         flex: 1;
@@ -714,7 +718,6 @@ function buildPdfReportNode() {
         gap: 8mm;
       }
       .pdf-footer {
-        margin-top: auto;
         padding: 4mm 0 0;
         display: flex;
         justify-content: space-between;
@@ -724,6 +727,12 @@ function buildPdfReportNode() {
         font-size: 10px;
         line-height: 1.35;
         color: #475569;
+      }
+      .pdf-page.has-fixed-footer .pdf-footer {
+        position: absolute;
+        left: 14mm;
+        right: 14mm;
+        bottom: 10mm;
       }
       .pdf-footer-left,
       .pdf-footer-right {
@@ -756,7 +765,7 @@ function buildPdfReportNode() {
       .mini-chart-label { font-size: 9px; color: #475569; }
     </style>
 
-    <section class="pdf-page">
+    <section class="pdf-page has-fixed-footer">
       <div class="pdf-page-content">
         <div class="pdf-title-row">
           <div>
