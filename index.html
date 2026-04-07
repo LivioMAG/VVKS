@@ -26,6 +26,8 @@
         <p>Frontend-basierte Bewertung mit automatischer Auswertung und PDF-Export</p>
       </div>
       <div class="header-actions">
+        <button id="openProjectBtn" class="btn btn-ghost">Projekt öffnen</button>
+        <button id="exportProjectBtn" class="btn btn-secondary">Projekt als CSV exportieren</button>
         <button id="exportPdfBtn" class="btn btn-primary">PDF exportieren</button>
         <button id="resetBtn" class="btn btn-danger">Daten löschen / Reset</button>
       </div>
@@ -145,6 +147,19 @@
     <template id="pillTemplate">
       <span class="pill"></span>
     </template>
+
+
+    <dialog id="projectDialog" class="onboarding-dialog">
+      <article>
+        <h2>Projekt laden</h2>
+        <p class="meta">Bitte wählen Sie beim Start: neues Projekt oder bestehende Projekt-CSV öffnen.</p>
+        <div class="dialog-actions">
+          <button id="createProjectBtn" type="button" class="btn btn-primary">Neues Projekt erstellen</button>
+          <button id="chooseProjectBtn" type="button" class="btn btn-secondary">Projekt öffnen (CSV)</button>
+        </div>
+      </article>
+    </dialog>
+    <input id="projectCsvInput" type="file" accept=".csv,text/csv" hidden />
 
     <dialog id="workflowDialog" class="onboarding-dialog">
       <article>
