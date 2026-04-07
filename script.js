@@ -60,10 +60,17 @@ const helperDialogTitle = document.getElementById("helperDialogTitle");
 const helperDialogText = document.getElementById("helperDialogText");
 const helperDialogPrompt = document.getElementById("helperDialogPrompt");
 const helperDialogCloseBtn = document.getElementById("helperDialogCloseBtn");
+const helperDialogOpenChatgptBtn = document.getElementById("helperDialogOpenChatgptBtn");
 const toggleRequirementsBtn = document.getElementById("toggleRequirementsBtn");
 const toggleProductsBtn = document.getElementById("toggleProductsBtn");
 const requirementsBody = document.getElementById("requirementsBody");
 const productsBody = document.getElementById("productsBody");
+const quickEditDialog = document.getElementById("quickEditDialog");
+const quickEditTitle = document.getElementById("quickEditTitle");
+const quickEditLabel = document.getElementById("quickEditLabel");
+const quickEditSelect = document.getElementById("quickEditSelect");
+const quickEditSaveBtn = document.getElementById("quickEditSaveBtn");
+const quickEditCancelBtn = document.getElementById("quickEditCancelBtn");
 
 const csvAssistantConfig = {
   requirements: {
@@ -83,6 +90,7 @@ const csvAssistantConfig = {
 };
 let editingRequirementId = null;
 let editingProductId = null;
+let pendingQuickEdit = null;
 
 requirementForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -264,6 +272,12 @@ requirementsPromptBtn.addEventListener("click", () => openHelperDialog("requirem
 productsInfoBtn.addEventListener("click", () => openHelperDialog("products", "info"));
 productsPromptBtn.addEventListener("click", () => openHelperDialog("products", "prompt"));
 helperDialogCloseBtn.addEventListener("click", () => helperDialog.close());
+helperDialogOpenChatgptBtn.addEventListener("click", () => {
+  const prompt = helperDialogOpenChatgptBtn.getAttribute("data-prompt") || "";
+  if (!prompt) return;
+  const url = `https://chatgpt.com/?q=${encodeURIComponent(prompt)}`;
+  window.open(url, "_blank", "noopener,noreferrer");
+});
 toggleRequirementsBtn.addEventListener("click", () => {
   state.collapsed.requirements = !state.collapsed.requirements;
   persistAndRender();
@@ -272,6 +286,11 @@ toggleProductsBtn.addEventListener("click", () => {
   state.collapsed.products = !state.collapsed.products;
   persistAndRender();
 });
+quickEditCancelBtn.addEventListener("click", () => {
+  pendingQuickEdit = null;
+  quickEditDialog.close();
+});
+quickEditSaveBtn.addEventListener("click", applyQuickEditSelection);
 
 function loadState() {
   const fallback = { projectName: "", requirements: [], products: [], ratings: {}, collapsed: { requirements: false, products: false } };
@@ -345,8 +364,12 @@ function renderRequirements() {
             <div class="item-topline">
               <h3>${escapeHtml(req.title)}</h3>
               <div class="item-badges">
-                <span class="pill ${req.type}">${labelType(req.type)}</span>
-                <span class="pill ${req.priority}">${labelPriority(req.priority)}</span>
+                <button class="pill pill-btn ${req.type}" type="button" data-quick-edit-type="${req.id}" aria-label="Typ für ${escapeHtml(
+                  req.title
+                )} ändern">${labelType(req.type)}</button>
+                <button class="pill pill-btn ${req.priority}" type="button" data-quick-edit-priority="${req.id}" aria-label="Priorität für ${escapeHtml(
+                  req.title
+                )} ändern">${labelPriority(req.priority)}</button>
               </div>
             </div>
             <p class="meta">${escapeHtml(req.description)}</p>
@@ -387,6 +410,14 @@ function renderRequirements() {
       editingRequirementId = req.id;
       setFormEditingState("requirement", true);
     });
+  });
+
+  document.querySelectorAll("[data-quick-edit-type]").forEach((btn) => {
+    btn.addEventListener("click", () => openQuickEditDialog(btn.getAttribute("data-quick-edit-type"), "type"));
+  });
+
+  document.querySelectorAll("[data-quick-edit-priority]").forEach((btn) => {
+    btn.addEventListener("click", () => openQuickEditDialog(btn.getAttribute("data-quick-edit-priority"), "priority"));
   });
 }
 
@@ -1125,7 +1156,54 @@ function openHelperDialog(type, mode) {
   helperDialogText.textContent = showPrompt ? "Kopiere den Prompt und füge darunter deinen Fließtext ein." : config.info;
   helperDialogPrompt.hidden = !showPrompt;
   helperDialogPrompt.textContent = showPrompt ? config.prompt : "";
+  helperDialogOpenChatgptBtn.hidden = !showPrompt;
+  helperDialogOpenChatgptBtn.setAttribute("data-prompt", showPrompt ? config.prompt : "");
   helperDialog.showModal();
+}
+
+function openQuickEditDialog(requirementId, field) {
+  const requirement = state.requirements.find((item) => item.id === requirementId);
+  if (!requirement) return;
+
+  pendingQuickEdit = { requirementId, field };
+  quickEditTitle.textContent = field === "type" ? "Typ direkt ändern" : "Priorität direkt ändern";
+  quickEditLabel.textContent = field === "type" ? "Typ auswählen" : "Priorität auswählen";
+
+  const options =
+    field === "type"
+      ? [
+          { value: "must", label: "Must-have" },
+          { value: "nice", label: "Nice-to-have" },
+        ]
+      : [
+          { value: "critical", label: "Zwingend" },
+          { value: "high", label: "Hoch" },
+          { value: "medium", label: "Mittel" },
+          { value: "low", label: "Niedrig" },
+        ];
+
+  const selectedValue = field === "type" ? requirement.type : requirement.priority;
+  quickEditSelect.innerHTML = options
+    .map((option) => `<option value="${option.value}" ${selectedValue === option.value ? "selected" : ""}>${option.label}</option>`)
+    .join("");
+  quickEditDialog.showModal();
+}
+
+function applyQuickEditSelection() {
+  if (!pendingQuickEdit) return;
+  const { requirementId, field } = pendingQuickEdit;
+  const selectedValue = quickEditSelect.value;
+  state.requirements = state.requirements.map((req) =>
+    req.id === requirementId
+      ? {
+          ...req,
+          [field]: selectedValue,
+        }
+      : req
+  );
+  pendingQuickEdit = null;
+  quickEditDialog.close();
+  persistAndRender();
 }
 
 function setFormEditingState(kind, isEditing) {

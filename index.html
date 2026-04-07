@@ -164,7 +164,22 @@
         <p id="helperDialogText" class="meta"></p>
         <pre id="helperDialogPrompt" class="prompt-box" hidden></pre>
         <div class="dialog-actions">
+          <button id="helperDialogOpenChatgptBtn" type="button" class="btn btn-secondary" hidden>In ChatGPT öffnen</button>
           <button id="helperDialogCloseBtn" type="button" class="btn btn-primary">Schließen</button>
+        </div>
+      </article>
+    </dialog>
+
+    <dialog id="quickEditDialog" class="onboarding-dialog quick-edit-dialog">
+      <article>
+        <h2 id="quickEditTitle">Wert ändern</h2>
+        <label>
+          <span id="quickEditLabel">Auswahl</span>
+          <select id="quickEditSelect"></select>
+        </label>
+        <div class="dialog-actions">
+          <button id="quickEditSaveBtn" type="button" class="btn btn-primary">Speichern</button>
+          <button id="quickEditCancelBtn" type="button" class="btn btn-ghost">Abbrechen</button>
         </div>
       </article>
     </dialog>
