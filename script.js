@@ -39,6 +39,12 @@ const matrixContainer = document.getElementById("matrixContainer");
 const resultsContent = document.getElementById("resultsContent");
 const resetBtn = document.getElementById("resetBtn");
 const exportPdfBtn = document.getElementById("exportPdfBtn");
+const downloadRequirementsTemplateBtn = document.getElementById("downloadRequirementsTemplateBtn");
+const uploadRequirementsCsvBtn = document.getElementById("uploadRequirementsCsvBtn");
+const requirementsCsvInput = document.getElementById("requirementsCsvInput");
+const downloadProductsTemplateBtn = document.getElementById("downloadProductsTemplateBtn");
+const uploadProductsCsvBtn = document.getElementById("uploadProductsCsvBtn");
+const productsCsvInput = document.getElementById("productsCsvInput");
 
 requirementForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -102,6 +108,56 @@ exportPdfBtn.addEventListener("click", () => {
   };
 
   window.html2pdf().set(opt).from(report).save();
+});
+
+downloadRequirementsTemplateBtn.addEventListener("click", () => {
+  const headers = ["title", "category", "description", "type", "priority", "note"];
+  const exampleRow = ["ISO 27001 Compliance", "Sicherheit", "Nachweisbare Zertifizierung", "must", "critical", "Pflicht bei Ausschreibungen"];
+  downloadCsvFile("anforderungen-template.csv", [headers, exampleRow]);
+});
+
+uploadRequirementsCsvBtn.addEventListener("click", () => requirementsCsvInput.click());
+requirementsCsvInput.addEventListener("change", async () => {
+  const file = requirementsCsvInput.files?.[0];
+  if (!file) return;
+
+  try {
+    const rows = parseCsv(await file.text());
+    const importedRequirements = rowsToRequirements(rows);
+    state.requirements = importedRequirements;
+    state.ratings = {};
+    persistAndRender();
+    window.alert(`${importedRequirements.length} Anforderungen erfolgreich importiert.`);
+  } catch (error) {
+    window.alert(error.message);
+  } finally {
+    requirementsCsvInput.value = "";
+  }
+});
+
+downloadProductsTemplateBtn.addEventListener("click", () => {
+  const headers = ["name", "vendor", "summary", "price", "note"];
+  const exampleRow = ["Produkt A", "Firma XY", "Cloud-Lösung für X", "49 € / Monat", "Pilot verfügbar"];
+  downloadCsvFile("produkte-template.csv", [headers, exampleRow]);
+});
+
+uploadProductsCsvBtn.addEventListener("click", () => productsCsvInput.click());
+productsCsvInput.addEventListener("change", async () => {
+  const file = productsCsvInput.files?.[0];
+  if (!file) return;
+
+  try {
+    const rows = parseCsv(await file.text());
+    const importedProducts = rowsToProducts(rows);
+    state.products = importedProducts;
+    state.ratings = {};
+    persistAndRender();
+    window.alert(`${importedProducts.length} Produkte erfolgreich importiert.`);
+  } catch (error) {
+    window.alert(error.message);
+  } finally {
+    productsCsvInput.value = "";
+  }
 });
 
 function loadState() {
@@ -444,6 +500,149 @@ function buildRankingTableForPdf(evaluation) {
 
 function getRequirementWeight(req) {
   return PRIORITY_POINTS[req.priority] * TYPE_FACTOR[req.type];
+}
+
+function rowsToRequirements(rows) {
+  const requiredHeaders = ["title", "category", "description", "type", "priority"];
+  ensureHeaders(rows.headers, requiredHeaders, "Anforderungen");
+
+  const rowsWithoutEmpty = rows.data.filter((entry) => Object.values(entry).some((value) => value.trim() !== ""));
+  const imported = rowsWithoutEmpty.map((entry, idx) => {
+    const type = normalizeType(entry.type);
+    const priority = normalizePriority(entry.priority);
+
+    if (!entry.title.trim() || !entry.category.trim() || !entry.description.trim()) {
+      throw new Error(`Anforderungen CSV: Pflichtfeld leer in Zeile ${idx + 2}.`);
+    }
+
+    return {
+      id: makeId("req"),
+      title: entry.title.trim(),
+      category: entry.category.trim(),
+      description: entry.description.trim(),
+      type,
+      priority,
+      note: (entry.note || "").trim(),
+    };
+  });
+
+  if (!imported.length) {
+    throw new Error("Anforderungen CSV enthält keine Datenzeilen.");
+  }
+
+  return imported;
+}
+
+function rowsToProducts(rows) {
+  const requiredHeaders = ["name", "vendor", "summary"];
+  ensureHeaders(rows.headers, requiredHeaders, "Produkte");
+
+  const rowsWithoutEmpty = rows.data.filter((entry) => Object.values(entry).some((value) => value.trim() !== ""));
+  const imported = rowsWithoutEmpty.map((entry, idx) => {
+    if (!entry.name.trim() || !entry.vendor.trim() || !entry.summary.trim()) {
+      throw new Error(`Produkte CSV: Pflichtfeld leer in Zeile ${idx + 2}.`);
+    }
+
+    return {
+      id: makeId("prd"),
+      name: entry.name.trim(),
+      vendor: entry.vendor.trim(),
+      summary: entry.summary.trim(),
+      price: (entry.price || "").trim(),
+      note: (entry.note || "").trim(),
+    };
+  });
+
+  if (!imported.length) {
+    throw new Error("Produkte CSV enthält keine Datenzeilen.");
+  }
+
+  return imported;
+}
+
+function ensureHeaders(actualHeaders, requiredHeaders, context) {
+  const normalized = actualHeaders.map((header) => header.toLowerCase().trim());
+  const missing = requiredHeaders.filter((required) => !normalized.includes(required));
+  if (missing.length) {
+    throw new Error(`${context} CSV: Fehlende Spalten: ${missing.join(", ")}.`);
+  }
+}
+
+function parseCsv(csvText) {
+  const lines = csvText.replace(/^\uFEFF/, "").replaceAll("\r\n", "\n").split("\n").filter((line) => line.trim() !== "");
+  if (!lines.length) throw new Error("CSV ist leer.");
+
+  const headers = splitCsvLine(lines[0]).map((value) => value.trim());
+  const data = lines.slice(1).map((line) => {
+    const values = splitCsvLine(line);
+    const row = {};
+    headers.forEach((header, idx) => {
+      row[header.toLowerCase()] = (values[idx] || "").trim();
+    });
+    return row;
+  });
+
+  return { headers, data };
+}
+
+function splitCsvLine(line) {
+  const values = [];
+  let value = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    if (char === '"') {
+      const nextChar = line[i + 1];
+      if (inQuotes && nextChar === '"') {
+        value += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === "," && !inQuotes) {
+      values.push(value);
+      value = "";
+    } else {
+      value += char;
+    }
+  }
+  values.push(value);
+  return values;
+}
+
+function normalizeType(value) {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "must" || normalized === "must-have") return "must";
+  if (normalized === "nice" || normalized === "nice-to-have") return "nice";
+  throw new Error(`Anforderungen CSV: Ungültiger Typ "${value}". Erlaubt: must oder nice.`);
+}
+
+function normalizePriority(value) {
+  const normalized = value.trim().toLowerCase();
+  if (["critical", "high", "medium", "low"].includes(normalized)) return normalized;
+  throw new Error(`Anforderungen CSV: Ungültige Priorität "${value}". Erlaubt: critical, high, medium, low.`);
+}
+
+function downloadCsvFile(filename, rows) {
+  const content = rows.map((row) => row.map((value) => toCsvCell(value)).join(",")).join("\n");
+  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function toCsvCell(value) {
+  const text = value.toString();
+  if (text.includes(",") || text.includes('"') || text.includes("\n")) {
+    return `"${text.replaceAll('"', '""')}"`;
+  }
+  return text;
 }
 
 function ratingKey(requirementId, productId) {

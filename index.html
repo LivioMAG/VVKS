@@ -34,6 +34,11 @@
     <main class="layout">
       <section class="card">
         <h2>Anforderungen</h2>
+        <div class="csv-actions">
+          <button type="button" id="downloadRequirementsTemplateBtn" class="btn btn-ghost">CSV-Template herunterladen</button>
+          <button type="button" id="uploadRequirementsCsvBtn" class="btn btn-ghost">CSV hochladen</button>
+          <input id="requirementsCsvInput" type="file" accept=".csv,text/csv" hidden />
+        </div>
         <form id="requirementForm" class="grid-form">
           <label>
             Titel / Name
@@ -76,6 +81,11 @@
 
       <section class="card">
         <h2>Produkte</h2>
+        <div class="csv-actions">
+          <button type="button" id="downloadProductsTemplateBtn" class="btn btn-ghost">CSV-Template herunterladen</button>
+          <button type="button" id="uploadProductsCsvBtn" class="btn btn-ghost">CSV hochladen</button>
+          <input id="productsCsvInput" type="file" accept=".csv,text/csv" hidden />
+        </div>
         <form id="productForm" class="grid-form">
           <label>
             Produktname
