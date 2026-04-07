@@ -48,50 +48,33 @@ const projectCsvInput = document.getElementById("projectCsvInput");
 const downloadRequirementsTemplateBtn = document.getElementById("downloadRequirementsTemplateBtn");
 const uploadRequirementsCsvBtn = document.getElementById("uploadRequirementsCsvBtn");
 const requirementsCsvInput = document.getElementById("requirementsCsvInput");
+const requirementsInfoBtn = document.getElementById("requirementsInfoBtn");
+const requirementsPromptBtn = document.getElementById("requirementsPromptBtn");
 const downloadProductsTemplateBtn = document.getElementById("downloadProductsTemplateBtn");
 const uploadProductsCsvBtn = document.getElementById("uploadProductsCsvBtn");
 const productsCsvInput = document.getElementById("productsCsvInput");
-const startRequirementsWorkflowBtn = document.getElementById("startRequirementsWorkflowBtn");
-const startProductsWorkflowBtn = document.getElementById("startProductsWorkflowBtn");
-const workflowDialog = document.getElementById("workflowDialog");
-const workflowStepTitle = document.getElementById("workflowStepTitle");
-const workflowStepText = document.getElementById("workflowStepText");
-const workflowPromptBox = document.getElementById("workflowPromptBox");
-const workflowDownloadBtn = document.getElementById("workflowDownloadBtn");
-const workflowUploadBtn = document.getElementById("workflowUploadBtn");
-const workflowNextBtn = document.getElementById("workflowNextBtn");
-const workflowCloseBtn = document.getElementById("workflowCloseBtn");
-const requirementsContent = document.getElementById("requirementsContent");
-const productsContent = document.getElementById("productsContent");
-const toggleRequirementsBtn = document.getElementById("toggleRequirementsBtn");
-const toggleProductsBtn = document.getElementById("toggleProductsBtn");
+const productsInfoBtn = document.getElementById("productsInfoBtn");
+const productsPromptBtn = document.getElementById("productsPromptBtn");
+const helperDialog = document.getElementById("helperDialog");
+const helperDialogTitle = document.getElementById("helperDialogTitle");
+const helperDialogText = document.getElementById("helperDialogText");
+const helperDialogPrompt = document.getElementById("helperDialogPrompt");
+const helperDialogCloseBtn = document.getElementById("helperDialogCloseBtn");
 
-const workflowConfig = {
+const csvAssistantConfig = {
   requirements: {
     label: "Anforderungen",
+    info: "1) CSV-Template herunterladen. 2) Inhalte in CSV eintragen (Spalten unverändert lassen). 3) Datei über 'CSV hochladen' importieren.",
     prompt:
       "Erstelle eine CSV-Datei zum Download (kein Fließtext). Nutze exakt die Spalten: title,category,description,type,priority,note. type nur must/nice, priority nur critical/high/medium/low.",
-    downloadAction: () => downloadRequirementsTemplateBtn.click(),
-    uploadAction: () => uploadRequirementsCsvBtn.click(),
   },
   products: {
     label: "Produkte",
+    info: "1) CSV-Template herunterladen. 2) Inhalte in CSV eintragen (Spalten unverändert lassen). 3) Datei über 'CSV hochladen' importieren.",
     prompt:
       "Erstelle eine CSV-Datei zum Download (kein Fließtext). Nutze exakt die Spalten: name,vendor,summary,price,note.",
-    downloadAction: () => downloadProductsTemplateBtn.click(),
-    uploadAction: () => uploadProductsCsvBtn.click(),
   },
 };
-
-const workflowSteps = [
-  { title: "Schritt 1 von 4", text: "Lade zuerst das passende CSV-Template herunter.", showDownload: true, nextLabel: "Weiter", needsAction: true, action: "download" },
-  { title: "Schritt 2 von 4", text: "Kopiere den Prompt in ChatGPT und füge deine Inhalte ein.", nextLabel: "Weiter" },
-  { title: "Schritt 3 von 4", text: "Prompt für ChatGPT (inkl. Hinweis auf eine downloadbare Datei):", showPrompt: true, nextLabel: "Weiter" },
-  { title: "Schritt 4 von 4", text: "Lade jetzt die erzeugte CSV-Datei hoch.", showUpload: true, nextLabel: "Fertig", needsAction: true, action: "upload" },
-];
-let workflowType = "requirements";
-let workflowStepIndex = 0;
-let workflowActionsDone = { download: false, upload: false };
 let editingRequirementId = null;
 let editingProductId = null;
 
@@ -233,10 +216,6 @@ requirementsCsvInput.addEventListener("change", async () => {
     editingRequirementId = null;
     setFormEditingState("requirement", false);
     persistAndRender();
-    if (workflowDialog.open && workflowType === "requirements") {
-      workflowActionsDone.upload = true;
-      updateWorkflowStep();
-    }
     window.alert(`${importedRequirements.length} Anforderungen erfolgreich importiert.`);
   } catch (error) {
     window.alert(error.message);
@@ -264,10 +243,6 @@ productsCsvInput.addEventListener("change", async () => {
     editingProductId = null;
     setFormEditingState("product", false);
     persistAndRender();
-    if (workflowDialog.open && workflowType === "products") {
-      workflowActionsDone.upload = true;
-      updateWorkflowStep();
-    }
     window.alert(`${importedProducts.length} Produkte erfolgreich importiert.`);
   } catch (error) {
     window.alert(error.message);
@@ -276,39 +251,11 @@ productsCsvInput.addEventListener("change", async () => {
   }
 });
 
-startRequirementsWorkflowBtn.addEventListener("click", () => openWorkflow("requirements"));
-startProductsWorkflowBtn.addEventListener("click", () => openWorkflow("products"));
-workflowCloseBtn.addEventListener("click", () => workflowDialog.close());
-workflowNextBtn.addEventListener("click", () => {
-  const currentStep = workflowSteps[workflowStepIndex];
-  if (currentStep.needsAction && !workflowActionsDone[currentStep.action]) {
-    window.alert("Bitte zuerst den Schritt mit dem Button ausführen.");
-    return;
-  }
-
-  if (workflowStepIndex >= workflowSteps.length - 1) {
-    workflowDialog.close();
-    return;
-  }
-  workflowStepIndex += 1;
-  updateWorkflowStep();
-});
-workflowDownloadBtn.addEventListener("click", () => {
-  workflowActionsDone.download = true;
-  workflowConfig[workflowType].downloadAction();
-  updateWorkflowStep();
-});
-workflowUploadBtn.addEventListener("click", () => workflowConfig[workflowType].uploadAction());
-
-toggleRequirementsBtn.addEventListener("click", () => {
-  requirementsContent.hidden = !requirementsContent.hidden;
-  toggleRequirementsBtn.textContent = requirementsContent.hidden ? "Maximieren" : "Minimieren";
-});
-
-toggleProductsBtn.addEventListener("click", () => {
-  productsContent.hidden = !productsContent.hidden;
-  toggleProductsBtn.textContent = productsContent.hidden ? "Maximieren" : "Minimieren";
-});
+requirementsInfoBtn.addEventListener("click", () => openHelperDialog("requirements", "info"));
+requirementsPromptBtn.addEventListener("click", () => openHelperDialog("requirements", "prompt"));
+productsInfoBtn.addEventListener("click", () => openHelperDialog("products", "info"));
+productsPromptBtn.addEventListener("click", () => openHelperDialog("products", "prompt"));
+helperDialogCloseBtn.addEventListener("click", () => helperDialog.close());
 
 function loadState() {
   const fallback = { requirements: [], products: [], ratings: {} };
@@ -974,25 +921,14 @@ function initializeProjectPicker() {
   }
 }
 
-function openWorkflow(type) {
-  workflowType = type;
-  workflowStepIndex = 0;
-  workflowActionsDone = { download: false, upload: false };
-  updateWorkflowStep();
-  workflowDialog.showModal();
-}
-
-function updateWorkflowStep() {
-  const step = workflowSteps[workflowStepIndex];
-  const config = workflowConfig[workflowType];
-  workflowStepTitle.textContent = `${config.label}: ${step.title}`;
-  workflowStepText.textContent = step.text;
-  workflowPromptBox.hidden = !step.showPrompt;
-  workflowPromptBox.textContent = config.prompt;
-  workflowDownloadBtn.hidden = !step.showDownload;
-  workflowUploadBtn.hidden = !step.showUpload;
-  workflowUploadBtn.textContent = `${config.label} hochladen`;
-  workflowNextBtn.textContent = step.nextLabel;
+function openHelperDialog(type, mode) {
+  const config = csvAssistantConfig[type];
+  const showPrompt = mode === "prompt";
+  helperDialogTitle.textContent = showPrompt ? `${config.label}: ChatGPT Prompt` : `${config.label}: Info`;
+  helperDialogText.textContent = showPrompt ? "Kopiere diesen Prompt in ChatGPT und lasse dir eine CSV-Datei erstellen." : config.info;
+  helperDialogPrompt.hidden = !showPrompt;
+  helperDialogPrompt.textContent = showPrompt ? config.prompt : "";
+  helperDialog.showModal();
 }
 
 function setFormEditingState(kind, isEditing) {
