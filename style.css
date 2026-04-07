@@ -418,13 +418,22 @@ td select {
 .mini-chart-fill {
   width: 100%;
   border-radius: 8px;
-  background: #93c5fd;
   color: #0f172a;
   font-size: 0.72rem;
   display: flex;
   align-items: flex-start;
   justify-content: center;
   padding-top: 0.2rem;
+}
+
+.mini-chart-fill.type-must {
+  background: #93c5fd;
+  color: #0b2a52;
+}
+
+.mini-chart-fill.type-nice {
+  background: #c7d2fe;
+  color: #312e81;
 }
 
 .mini-chart-fill.failed-critical {
@@ -500,6 +509,22 @@ td select {
 
 .weight-control-row input[type="range"] {
   flex: 1;
+}
+
+.weight-slider {
+  accent-color: #60a5fa;
+}
+
+.weight-slider.weight-slider-must {
+  accent-color: #93c5fd;
+}
+
+.weight-slider.weight-slider-nice {
+  accent-color: #c7d2fe;
+}
+
+.weight-slider.weight-slider-price {
+  accent-color: #bfdbfe;
 }
 
 .weight-lock-label {
