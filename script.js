@@ -552,6 +552,8 @@ function evaluateProducts() {
       priceValue: extractPriceValue(prd.price),
       priceScore: 0,
       finalScore: percent,
+      weightedFunctionalScore: percent,
+      weightedPriceScore: 0,
     };
   });
 
@@ -568,11 +570,15 @@ function evaluateProducts() {
         const relativeScore = (maxPrice - item.priceValue) / (maxPrice - minPrice);
         item.priceScore = 50 + relativeScore * 50;
       }
-      item.finalScore = item.percent * ((100 - priceWeight) / 100) + item.priceScore * (priceWeight / 100);
+      item.weightedFunctionalScore = item.percent * ((100 - priceWeight) / 100);
+      item.weightedPriceScore = item.priceScore * (priceWeight / 100);
+      item.finalScore = item.weightedFunctionalScore + item.weightedPriceScore;
     });
   } else {
     ranked.forEach((item) => {
       item.priceScore = 50;
+      item.weightedFunctionalScore = item.percent;
+      item.weightedPriceScore = 0;
       item.finalScore = item.percent;
     });
   }
@@ -627,13 +633,13 @@ function buildOverallChart(evaluation) {
   }
 
   return evaluation.ranking
-    .map((item) => `
-      <div class="chart-row">
+    .map((item, index) => `
+      <div class="chart-row ${(index + 1) % 3 === 0 ? "group-break" : ""}">
         <div class="chart-label ${item.excluded ? "muted-product" : ""}">${escapeHtml(item.name)}</div>
         <div class="chart-bars">
           <div class="bar final ${item.excluded ? "excluded" : ""}" style="width:${Math.max(2, Math.min(100, item.finalScore))}%">Gesamt ${item.finalScore.toFixed(1)}%</div>
           <div class="bar functional ${item.excluded ? "excluded" : ""}" style="width:${Math.max(2, Math.min(100, item.percent))}%">Anforderung ${item.percent.toFixed(1)}%</div>
-          <div class="bar price ${item.excluded ? "excluded" : ""}" style="width:${Math.max(2, Math.min(100, item.priceScore))}%">Preis ${item.priceScore.toFixed(1)}%</div>
+          <div class="bar price ${item.excluded ? "excluded" : ""}" style="width:${Math.max(2, Math.min(100, item.weightedPriceScore))}%">Preisanteil ${item.weightedPriceScore.toFixed(1)}%</div>
         </div>
         ${item.excluded ? "<p class='meta excluded-note'>Hat eine zwingende Anforderung nicht erfüllt.</p>" : ""}
       </div>
@@ -645,7 +651,7 @@ function buildPdfReportNode() {
   const wrapper = document.createElement("div");
   const evaluation = evaluateProducts();
   const date = new Date().toLocaleDateString("de-DE");
-  const headingColor = "#2f7d32";
+  const headingColor = "#a3b26b";
   const productList = state.products
     .map((prd) => `<li><strong>${escapeHtml(prd.name)}</strong> – ${escapeHtml(prd.vendor)} – ${escapeHtml(formatPriceCHF(prd.price || "k. A."))}</li>`)
     .join("");
@@ -683,7 +689,7 @@ function buildPdfReportNode() {
         justify-content: space-between;
         gap: 8mm;
         border-top: 1px solid #d7dee8;
-        background: #f1f3f5;
+        background: #ffffff;
         font-size: 10px;
         line-height: 1.35;
         color: #475569;
@@ -695,6 +701,7 @@ function buildPdfReportNode() {
       .pdf-footer-right { text-align: right; color: #334155; }
       .pdf-muted { color: #64748b; }
       .chart-row { margin-bottom: 7px; }
+      .chart-row.group-break { margin-bottom: 15px; }
       .chart-label { font-size: 11px; font-weight: 600; margin-bottom: 2px; }
       .chart-label.muted-product { color: #7c8798; }
       .chart-bars { display: grid; gap: 5px; }
@@ -704,17 +711,17 @@ function buildPdfReportNode() {
         padding: 4px 8px;
         color: #0f172a;
       }
-      .bar.final { background: #86efac; }
-      .bar.functional { background: #d1d5db; }
-      .bar.price { background: #fde68a; }
-      .bar.excluded { background: #d1d5db; color: #4b5563; }
+      .bar.final { background: #60a5fa; color: #0b2a52; }
+      .bar.functional { background: #93c5fd; color: #0b2a52; }
+      .bar.price { background: #bfdbfe; color: #0b2a52; }
+      .bar.excluded { background: #fecaca; color: #7f1d1d; }
       .excluded-note { margin-top: 4px; color: #6b7280; font-size: 10px; }
       .requirement-chart { border: none; border-radius: 0; padding: 0; margin: 0 0 12px; background: transparent; }
       .requirement-chart h4 { margin: 0 0 6px; font-size: 12px; font-weight: 600; }
       .mini-chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); gap: 8px; }
       .mini-chart-track { background: #e5e7eb; border-radius: 8px; min-height: 90px; }
-      .mini-chart-fill { background: #d1d5db; font-size: 9px; }
-      .mini-chart-fill.failed-critical { background: #9ca3af; color: #111827; }
+      .mini-chart-fill { background: #93c5fd; color: #0b2a52; font-size: 9px; }
+      .mini-chart-fill.failed-critical { background: #fecaca; color: #7f1d1d; }
       .mini-chart-label { font-size: 9px; color: #475569; }
     </style>
 
@@ -746,7 +753,6 @@ function buildPdfReportNode() {
         <h2 style="color:${headingColor};padding-left:2px;margin:0 0 4mm;">Gesamtauswertung</h2>
         ${overallChart || "<p>Keine Gesamtauswertung verfügbar.</p>"}
       </div>
-      ${buildPdfFooter()}
     </section>
 
     <section class="pdf-page">
@@ -754,7 +760,6 @@ function buildPdfReportNode() {
         <h2 style="color:${headingColor};padding-left:2px;margin:0 0 4mm;">Säulendiagramme je Anforderung</h2>
         ${requirementCharts || "<p>Keine Grafik verfügbar.</p>"}
       </div>
-      ${buildPdfFooter()}
     </section>
   `;
 

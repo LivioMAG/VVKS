@@ -212,6 +212,10 @@ textarea {
   margin-bottom: 0.5rem;
 }
 
+.chart-row.group-break {
+  margin-bottom: 1.25rem;
+}
+
 .chart-label {
   font-size: 0.85rem;
   font-weight: 600;
@@ -231,9 +235,9 @@ textarea {
   white-space: nowrap;
 }
 
-.bar.final { background: #86efac; }
-.bar.functional { background: #d1d5db; }
-.bar.price { background: #fde68a; }
+.bar.final { background: #60a5fa; color: #0b2a52; }
+.bar.functional { background: #93c5fd; color: #0b2a52; }
+.bar.price { background: #bfdbfe; color: #0b2a52; }
 
 .list {
   display: grid;
