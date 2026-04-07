@@ -584,21 +584,21 @@ function renderResults() {
       <label>
         Must-Have Relevanz in der Gesamtauswertung: <strong><span id="mustWeightValue">${evaluation.mustWeight}%</span></strong>
         <div class="weight-control-row">
-          <input id="mustWeightSlider" type="range" min="0" max="100" step="1" value="${evaluation.mustWeight}" />
+          <input id="mustWeightSlider" class="weight-slider weight-slider-must" type="range" min="0" max="100" step="1" value="${evaluation.mustWeight}" />
           <label class="weight-lock-label"><input type="radio" name="weightLock" value="mustWeight" ${state.lockedWeightKey === "mustWeight" ? "checked" : ""} /> Koppeln</label>
         </div>
       </label>
       <label>
         Nice to Have Relevanz in der Gesamtauswertung: <strong><span id="niceWeightValue">${evaluation.niceWeight}%</span></strong>
         <div class="weight-control-row">
-          <input id="niceWeightSlider" type="range" min="0" max="100" step="1" value="${evaluation.niceWeight}" />
+          <input id="niceWeightSlider" class="weight-slider weight-slider-nice" type="range" min="0" max="100" step="1" value="${evaluation.niceWeight}" />
           <label class="weight-lock-label"><input type="radio" name="weightLock" value="niceWeight" ${state.lockedWeightKey === "niceWeight" ? "checked" : ""} /> Koppeln</label>
         </div>
       </label>
       <label>
         Preis-Relevanz in der Gesamtauswertung: <strong><span id="priceWeightValue">${evaluation.priceWeight}%</span></strong>
         <div class="weight-control-row">
-          <input id="priceWeightSlider" type="range" min="0" max="100" step="1" value="${evaluation.priceWeight}" />
+          <input id="priceWeightSlider" class="weight-slider weight-slider-price" type="range" min="0" max="100" step="1" value="${evaluation.priceWeight}" />
           <label class="weight-lock-label"><input type="radio" name="weightLock" value="priceWeight" ${state.lockedWeightKey === "priceWeight" ? "checked" : ""} /> Koppeln</label>
         </div>
       </label>
@@ -805,7 +805,7 @@ function buildRequirementCharts(evaluation, compact = false) {
           return `
             <div class="mini-chart-col">
               <div class="mini-chart-track">
-                <div class="mini-chart-fill${failedCriticalClass}" style="height:${safeHeight}%">${percent.toFixed(0)}%</div>
+                <div class="mini-chart-fill type-${req.type}${failedCriticalClass}" style="height:${safeHeight}%">${percent.toFixed(0)}%</div>
               </div>
               <div class="mini-chart-label">${escapeHtml(prd.name)}</div>
             </div>
@@ -871,7 +871,7 @@ function buildPdfReportNode() {
         break-after: page;
       }
       .pdf-page.has-fixed-footer {
-        padding-bottom: 42mm;
+        padding-bottom: 52mm;
       }
       .pdf-page-content {
         flex: 1;
@@ -901,7 +901,7 @@ function buildPdfReportNode() {
         position: absolute;
         left: 14mm;
         right: 14mm;
-        bottom: 10mm;
+        bottom: 0;
       }
       .pdf-footer-left,
       .pdf-footer-right {
@@ -930,7 +930,9 @@ function buildPdfReportNode() {
       .requirement-chart h4 { margin: 0 0 6px; font-size: 12px; font-weight: 600; }
       .mini-chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); gap: 8px; }
       .mini-chart-track { background: #e5e7eb; border-radius: 8px; min-height: 90px; }
-      .mini-chart-fill { background: #93c5fd; color: #0b2a52; font-size: 9px; }
+      .mini-chart-fill { color: #0b2a52; font-size: 9px; }
+      .mini-chart-fill.type-must { background: #93c5fd; }
+      .mini-chart-fill.type-nice { background: #c7d2fe; color: #312e81; }
       .mini-chart-fill.failed-critical { background: #fecaca; color: #7f1d1d; }
       .mini-chart-label { font-size: 9px; color: #475569; }
     </style>
