@@ -289,6 +289,12 @@ textarea {
   display: inline-block;
 }
 
+.pill-btn {
+  border: none;
+  margin-right: 0;
+  cursor: pointer;
+}
+
 .pill.must { background: #dbeafe; color: #1d4ed8; }
 .pill.nice { background: #e0f2fe; color: #0369a1; }
 .pill.critical { background: #fee2e2; color: #b91c1c; }
@@ -437,6 +443,10 @@ td select {
   border-radius: 16px;
   width: min(680px, calc(100vw - 2rem));
   box-shadow: 0 18px 50px rgba(15, 23, 42, 0.25);
+}
+
+.quick-edit-dialog {
+  width: min(420px, calc(100vw - 2rem));
 }
 
 .onboarding-dialog::backdrop {
