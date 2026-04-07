@@ -64,9 +64,10 @@ const helperDialogCloseBtn = document.getElementById("helperDialogCloseBtn");
 const csvAssistantConfig = {
   requirements: {
     label: "Anforderungen",
-    info: "1) CSV-Template herunterladen. 2) Inhalte in CSV eintragen (Spalten unverändert lassen). 3) Datei über 'CSV hochladen' importieren.",
+    info:
+      "1) Klicke auf 🤖 und kopiere den Prompt. 2) Füge den Prompt in ein Sprachmodell deiner Wahl ein (z. B. ChatGPT). 3) Gehe in dein Dokument und kopiere die betrieblichen Anforderungen inklusive Untertitel der Thematiken aus dem Standarddokument (Kapitel 3) unter den Prompt. 4) Achte darauf: Erst Prompt, danach der kopierte Anforderungs-Abschnitt. 5) Sende die Anfrage ab. 6) Lade die erzeugte Datei herunter und importiere sie hier über 'Anforderungen Upload'. 7) Prüfe anschließend die einzelnen Anforderungen.",
     prompt:
-      "Erstelle eine CSV-Datei zum Download (kein Fließtext). Nutze exakt die Spalten: title,category,description,type,priority,note. type nur must/nice, priority nur critical/high/medium/low.",
+      "Erstelle eine CSV-Datei zum Download (kein Fließtext). Nutze exakt die Spalten: title,category,description,type,priority,note. type nur must/nice, priority nur critical/high/medium/low. Unten findest du die betrieblichen Anforderungen. Kategorisiere jede Anforderung selbstständig als Must-have oder Nice-to-have und ordne die Wichtigkeit eigenständig als zwingend (critical), hoch (high), mittel (medium) oder niedrig (low) ein.",
   },
   products: {
     label: "Produkte",
@@ -924,8 +925,12 @@ function initializeProjectPicker() {
 function openHelperDialog(type, mode) {
   const config = csvAssistantConfig[type];
   const showPrompt = mode === "prompt";
+  const promptHelpText =
+    type === "requirements"
+      ? "Kopiere den Prompt, füge ihn in ein Sprachmodell ein und ergänze darunter die betrieblichen Anforderungen aus deinem Dokument."
+      : "Kopiere diesen Prompt in ChatGPT und lasse dir eine CSV-Datei erstellen.";
   helperDialogTitle.textContent = showPrompt ? `${config.label}: ChatGPT Prompt` : `${config.label}: Info`;
-  helperDialogText.textContent = showPrompt ? "Kopiere diesen Prompt in ChatGPT und lasse dir eine CSV-Datei erstellen." : config.info;
+  helperDialogText.textContent = showPrompt ? promptHelpText : config.info;
   helperDialogPrompt.hidden = !showPrompt;
   helperDialogPrompt.textContent = showPrompt ? config.prompt : "";
   helperDialog.showModal();
