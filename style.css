@@ -69,6 +69,39 @@ body {
   font-size: 1.2rem;
 }
 
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 0.65rem;
+}
+
+.section-head h2 {
+  margin: 0;
+}
+
+.section-head-actions {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.plus-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  font-size: 1.3rem;
+  line-height: 1;
+  padding: 0;
+}
+
+#requirementsContent,
+#productsContent {
+  display: grid;
+  gap: 0.8rem;
+}
+
 .onboarding-card {
   display: flex;
   justify-content: space-between;
@@ -178,7 +211,7 @@ textarea {
 
 .list-item {
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 0.7rem;
   display: flex;
   justify-content: space-between;
@@ -208,6 +241,29 @@ textarea {
 .pill.must { background: #dbeafe; color: #1d4ed8; }
 .pill.nice { background: #e0f2fe; color: #0369a1; }
 .pill.critical { background: #fee2e2; color: #b91c1c; }
+
+.item-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.icon-btn {
+  border: 1px solid var(--border);
+  background: #f8fafc;
+  border-radius: 999px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.icon-btn.danger {
+  background: #fff1f2;
+  border-color: #fecdd3;
+}
 
 .table-wrap {
   overflow-x: auto;
@@ -300,4 +356,5 @@ td select {
   .grid-form { grid-template-columns: 1fr; }
   .span-2 { grid-column: span 1; }
   .onboarding-card { align-items: flex-start; }
+  .section-head { align-items: flex-start; flex-direction: column; }
 }

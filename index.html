@@ -32,16 +32,15 @@
     </header>
 
     <main class="layout">
-      <section id="onboardingCard" class="card span-full onboarding-card" hidden>
-        <div>
-          <h2>Neue Evaluation erfassen</h2>
-          <p class="meta">Es sind noch keine Daten vorhanden. Starte mit dem geführten Ablauf.</p>
-        </div>
-        <button id="startOnboardingBtn" class="btn btn-primary onboarding-plus" type="button" aria-label="Evaluation erfassen">+</button>
-      </section>
-
       <section class="card">
-        <h2>Anforderungen</h2>
+        <div class="section-head">
+          <h2>Anforderungen</h2>
+          <div class="section-head-actions">
+            <button id="startRequirementsWorkflowBtn" class="btn btn-primary plus-btn" type="button" aria-label="Workflow Anforderungen starten">+</button>
+            <button id="toggleRequirementsBtn" class="btn btn-ghost" type="button">Minimieren</button>
+          </div>
+        </div>
+        <div id="requirementsContent">
         <div class="csv-actions">
           <button type="button" id="downloadRequirementsTemplateBtn" class="btn btn-ghost">CSV-Template herunterladen</button>
           <button type="button" id="uploadRequirementsCsvBtn" class="btn btn-ghost">CSV hochladen</button>
@@ -85,10 +84,18 @@
           </div>
         </form>
         <div id="requirementsList" class="list"></div>
+        </div>
       </section>
 
       <section class="card">
-        <h2>Produkte</h2>
+        <div class="section-head">
+          <h2>Produkte</h2>
+          <div class="section-head-actions">
+            <button id="startProductsWorkflowBtn" class="btn btn-primary plus-btn" type="button" aria-label="Workflow Produkte starten">+</button>
+            <button id="toggleProductsBtn" class="btn btn-ghost" type="button">Minimieren</button>
+          </div>
+        </div>
+        <div id="productsContent">
         <div class="csv-actions">
           <button type="button" id="downloadProductsTemplateBtn" class="btn btn-ghost">CSV-Template herunterladen</button>
           <button type="button" id="uploadProductsCsvBtn" class="btn btn-ghost">CSV hochladen</button>
@@ -120,6 +127,7 @@
           </div>
         </form>
         <div id="productsList" class="list"></div>
+        </div>
       </section>
 
       <section class="card span-full">
@@ -138,16 +146,16 @@
       <span class="pill"></span>
     </template>
 
-    <dialog id="onboardingDialog" class="onboarding-dialog">
+    <dialog id="workflowDialog" class="onboarding-dialog">
       <article>
-        <h2 id="onboardingStepTitle">Schritt 1 von 5</h2>
-        <p id="onboardingStepText" class="meta"></p>
-        <pre id="onboardingPromptBox" class="prompt-box" hidden></pre>
+        <h2 id="workflowStepTitle">Schritt 1 von 4</h2>
+        <p id="workflowStepText" class="meta"></p>
+        <pre id="workflowPromptBox" class="prompt-box" hidden></pre>
         <div class="dialog-actions">
-          <button id="onboardingDownloadBtn" type="button" class="btn btn-secondary" hidden>CSV-Datei herunterladen</button>
-          <button id="onboardingUploadBtn" type="button" class="btn btn-secondary" hidden>Anforderungen hochladen</button>
-          <button id="onboardingNextBtn" type="button" class="btn btn-primary">Weiter</button>
-          <button id="onboardingCloseBtn" type="button" class="btn btn-ghost">Schließen</button>
+          <button id="workflowDownloadBtn" type="button" class="btn btn-secondary" hidden>CSV-Datei herunterladen</button>
+          <button id="workflowUploadBtn" type="button" class="btn btn-secondary" hidden>Datei hochladen</button>
+          <button id="workflowNextBtn" type="button" class="btn btn-primary">Weiter</button>
+          <button id="workflowCloseBtn" type="button" class="btn btn-ghost">Schließen</button>
         </div>
       </article>
     </dialog>
