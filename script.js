@@ -149,6 +149,9 @@ resetBtn.addEventListener("click", () => {
   state.requirements = [];
   state.products = [];
   state.ratings = {};
+  state.mustWeight = 50;
+  state.niceWeight = 20;
+  state.priceWeight = 30;
   state.collapsed = { requirements: false, products: false };
   render();
   if (projectDialog?.showModal) projectDialog.showModal();
@@ -164,6 +167,9 @@ createProjectBtn.addEventListener("click", () => {
   state.requirements = [];
   state.products = [];
   state.ratings = {};
+  state.mustWeight = 50;
+  state.niceWeight = 20;
+  state.priceWeight = 30;
   state.collapsed = { requirements: false, products: false };
   editingRequirementId = null;
   editingProductId = null;
@@ -184,6 +190,8 @@ projectCsvInput.addEventListener("change", async () => {
     const rows = parseCsv(await file.text());
     const importedState = rowsToProjectState(rows);
     state.projectName = importedState.projectName;
+    state.mustWeight = importedState.mustWeight;
+    state.niceWeight = importedState.niceWeight;
     state.priceWeight = importedState.priceWeight;
     state.requirements = importedState.requirements;
     state.products = importedState.products;
@@ -295,7 +303,16 @@ quickEditCancelBtn.addEventListener("click", () => {
 quickEditSaveBtn.addEventListener("click", applyQuickEditSelection);
 
 function loadState() {
-  const fallback = { projectName: "", requirements: [], products: [], ratings: {}, collapsed: { requirements: false, products: false } };
+  const fallback = {
+    projectName: "",
+    requirements: [],
+    products: [],
+    ratings: {},
+    mustWeight: 50,
+    niceWeight: 20,
+    priceWeight: 30,
+    collapsed: { requirements: false, products: false },
+  };
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return fallback;
@@ -305,6 +322,9 @@ function loadState() {
       requirements: Array.isArray(parsed.requirements) ? parsed.requirements : [],
       products: Array.isArray(parsed.products) ? parsed.products : [],
       ratings: parsed.ratings && typeof parsed.ratings === "object" ? parsed.ratings : {},
+      mustWeight: clamp(Number(parsed.mustWeight ?? 50), 0, 100),
+      niceWeight: clamp(Number(parsed.niceWeight ?? 20), 0, 100),
+      priceWeight: clamp(Number(parsed.priceWeight ?? 30), 0, 100),
       collapsed: {
         requirements: Boolean(parsed.collapsed?.requirements),
         products: Boolean(parsed.collapsed?.products),
@@ -528,10 +548,18 @@ function renderResults() {
   resultsContent.innerHTML = `
     <div class="price-weight-box">
       <label>
+        Must-Have Relevanz in der Gesamtauswertung: <strong><span id="mustWeightValue">${evaluation.mustWeight}%</span></strong>
+        <input id="mustWeightSlider" type="range" min="0" max="100" step="5" value="${evaluation.mustWeight}" />
+      </label>
+      <label>
+        Nice to Have Relevanz in der Gesamtauswertung: <strong><span id="niceWeightValue">${evaluation.niceWeight}%</span></strong>
+        <input id="niceWeightSlider" type="range" min="0" max="100" step="5" value="${evaluation.niceWeight}" />
+      </label>
+      <label>
         Preis-Relevanz in der Gesamtauswertung: <strong><span id="priceWeightValue">${evaluation.priceWeight}%</span></strong>
         <input id="priceWeightSlider" type="range" min="0" max="100" step="5" value="${evaluation.priceWeight}" />
       </label>
-      <p class="meta">0% = nur Anforderungserfüllung, 100% = nur Preisvergleich.</p>
+      <p class="meta">Alle drei Regler sind unabhängig und müssen zusammen nicht 100% ergeben.</p>
     </div>
     <div class="beautiful-chart" id="beautifulChart">
       <h3>Gesamtauswertung je Produkt (inkl. Preisfaktor)</h3>
@@ -543,6 +571,18 @@ function renderResults() {
     </div>
   `;
 
+  const mustWeightSlider = document.getElementById("mustWeightSlider");
+  mustWeightSlider?.addEventListener("input", () => {
+    state.mustWeight = Number(mustWeightSlider.value);
+    persistAndRender();
+  });
+
+  const niceWeightSlider = document.getElementById("niceWeightSlider");
+  niceWeightSlider?.addEventListener("input", () => {
+    state.niceWeight = Number(niceWeightSlider.value);
+    persistAndRender();
+  });
+
   const priceWeightSlider = document.getElementById("priceWeightSlider");
   priceWeightSlider?.addEventListener("input", () => {
     state.priceWeight = Number(priceWeightSlider.value);
@@ -551,11 +591,17 @@ function renderResults() {
 }
 
 function evaluateProducts() {
-  const maxPoints = state.requirements.reduce((sum, req) => sum + getRequirementWeight(req), 0);
+  const mustWeight = Number.isFinite(state.mustWeight) ? state.mustWeight : 50;
+  const niceWeight = Number.isFinite(state.niceWeight) ? state.niceWeight : 20;
   const priceWeight = Number.isFinite(state.priceWeight) ? state.priceWeight : 30;
+  const maxMustPoints = state.requirements.filter((req) => req.type === "must").reduce((sum, req) => sum + getRequirementWeight(req), 0);
+  const maxNicePoints = state.requirements.filter((req) => req.type === "nice").reduce((sum, req) => sum + getRequirementWeight(req), 0);
+  const maxPoints = maxMustPoints + maxNicePoints;
 
   const ranked = state.products.map((prd) => {
     let points = 0;
+    let mustPoints = 0;
+    let nicePoints = 0;
     const failedCritical = [];
 
     state.requirements.forEach((req) => {
@@ -565,6 +611,8 @@ function evaluateProducts() {
       const reqWeight = getRequirementWeight(req);
 
       points += reqWeight * factor;
+      if (req.type === "must") mustPoints += reqWeight * factor;
+      if (req.type === "nice") nicePoints += reqWeight * factor;
 
       if (req.priority === "critical" && ["partial", "none"].includes(rating)) {
         failedCritical.push(req.title);
@@ -573,6 +621,8 @@ function evaluateProducts() {
 
     const excluded = failedCritical.length > 0;
     const percent = maxPoints > 0 ? (points / maxPoints) * 100 : 0;
+    const mustPercent = maxMustPoints > 0 ? (mustPoints / maxMustPoints) * 100 : 0;
+    const nicePercent = maxNicePoints > 0 ? (nicePoints / maxNicePoints) * 100 : 0;
 
     return {
       id: prd.id,
@@ -585,8 +635,11 @@ function evaluateProducts() {
       priceValue: extractPriceValue(prd.price),
       priceScore: 0,
       finalScore: percent,
-      weightedFunctionalScore: percent,
+      weightedMustScore: 0,
+      weightedNiceScore: 0,
       weightedPriceScore: 0,
+      mustPercent,
+      nicePercent,
     };
   });
 
@@ -603,16 +656,20 @@ function evaluateProducts() {
         const relativeScore = (maxPrice - item.priceValue) / (maxPrice - minPrice);
         item.priceScore = 50 + relativeScore * 50;
       }
-      item.weightedFunctionalScore = item.percent * ((100 - priceWeight) / 100);
-      item.weightedPriceScore = item.priceScore * (priceWeight / 100);
-      item.finalScore = clamp(item.weightedFunctionalScore + item.weightedPriceScore, 0, 100);
+      const totalWeight = mustWeight + niceWeight + priceWeight;
+      item.weightedMustScore = totalWeight > 0 ? (item.mustPercent * mustWeight) / totalWeight : 0;
+      item.weightedNiceScore = totalWeight > 0 ? (item.nicePercent * niceWeight) / totalWeight : 0;
+      item.weightedPriceScore = totalWeight > 0 ? (item.priceScore * priceWeight) / totalWeight : 0;
+      item.finalScore = clamp(item.weightedMustScore + item.weightedNiceScore + item.weightedPriceScore, 0, 100);
     });
   } else {
     ranked.forEach((item) => {
       item.priceScore = 50;
-      item.weightedFunctionalScore = item.percent;
-      item.weightedPriceScore = 0;
-      item.finalScore = item.percent;
+      const totalWeight = mustWeight + niceWeight + priceWeight;
+      item.weightedMustScore = totalWeight > 0 ? (item.mustPercent * mustWeight) / totalWeight : 0;
+      item.weightedNiceScore = totalWeight > 0 ? (item.nicePercent * niceWeight) / totalWeight : 0;
+      item.weightedPriceScore = totalWeight > 0 ? (item.priceScore * priceWeight) / totalWeight : 0;
+      item.finalScore = clamp(item.weightedMustScore + item.weightedNiceScore + item.weightedPriceScore, 0, 100);
     });
   }
 
@@ -622,7 +679,7 @@ function evaluateProducts() {
     return b.points - a.points;
   });
 
-  return { maxPoints, ranking: ranked, priceWeight };
+  return { maxPoints, ranking: ranked, mustWeight, niceWeight, priceWeight };
 }
 
 function buildRequirementCharts(evaluation, compact = false) {
@@ -671,7 +728,8 @@ function buildOverallChart(evaluation) {
         <div class="chart-label ${item.excluded ? "muted-product" : ""}">${escapeHtml(item.name)}</div>
         <div class="chart-bars">
           <div class="bar final ${item.excluded ? "excluded" : ""}" style="width:${Math.max(2, Math.min(100, item.finalScore))}%">Gesamt ${item.finalScore.toFixed(1)}%</div>
-          <div class="bar functional ${item.excluded ? "excluded" : ""}" style="width:${Math.max(2, Math.min(100, item.weightedFunctionalScore))}%">Anforderungsanteil ${item.weightedFunctionalScore.toFixed(1)}%</div>
+          <div class="bar must ${item.excluded ? "excluded" : ""}" style="width:${Math.max(2, Math.min(100, item.weightedMustScore))}%">Must-Have ${item.weightedMustScore.toFixed(1)}%</div>
+          <div class="bar nice ${item.excluded ? "excluded" : ""}" style="width:${Math.max(2, Math.min(100, item.weightedNiceScore))}%">Nice to Have ${item.weightedNiceScore.toFixed(1)}%</div>
           <div class="bar price ${item.excluded ? "excluded" : ""}" style="width:${Math.max(2, Math.min(100, item.weightedPriceScore))}%">Preisanteil ${item.weightedPriceScore.toFixed(1)}%</div>
         </div>
         ${item.excluded ? "<p class='meta excluded-note'>Hat eine zwingende Anforderung nicht erfüllt.</p>" : ""}
@@ -756,7 +814,8 @@ function buildPdfReportNode() {
         color: #0f172a;
       }
       .bar.final { background: #60a5fa; color: #0b2a52; }
-      .bar.functional { background: #93c5fd; color: #0b2a52; }
+      .bar.must { background: #93c5fd; color: #0b2a52; }
+      .bar.nice { background: #c7d2fe; color: #312e81; }
       .bar.price { background: #bfdbfe; color: #0b2a52; }
       .bar.excluded { background: #fecaca; color: #7f1d1d; }
       .excluded-note { margin-top: 4px; color: #6b7280; font-size: 10px; }
@@ -990,9 +1049,11 @@ function toCsvCell(value) {
 
 function buildProjectCsvRows() {
   const rows = [["section", "id", "field", "value"]];
-  rows.push(["meta", "project", "version", "2"]);
+  rows.push(["meta", "project", "version", "3"]);
   rows.push(["meta", "project", "exportedAt", new Date().toISOString()]);
   rows.push(["meta", "project", "projectName", getProjectName()]);
+  rows.push(["meta", "project", "mustWeight", String(state.mustWeight ?? 50)]);
+  rows.push(["meta", "project", "niceWeight", String(state.niceWeight ?? 20)]);
   rows.push(["meta", "project", "priceWeight", String(state.priceWeight ?? 30)]);
 
   state.requirements.forEach((req) => {
@@ -1098,6 +1159,8 @@ function rowsToProjectState(rows) {
 
   return {
     projectName: meta.projectname || "Importiertes Projekt",
+    mustWeight: clamp(Number(meta.mustweight ?? 50), 0, 100),
+    niceWeight: clamp(Number(meta.niceweight ?? 20), 0, 100),
     priceWeight: clamp(Number(meta.priceweight ?? 30), 0, 100),
     requirements,
     products,
@@ -1155,6 +1218,8 @@ function escapeHtml(value) {
 }
 
 function initializeProjectPicker() {
+  if (!Number.isFinite(state.mustWeight)) state.mustWeight = 50;
+  if (!Number.isFinite(state.niceWeight)) state.niceWeight = 20;
   if (!Number.isFinite(state.priceWeight)) state.priceWeight = 30;
   render();
   if (!state.projectName && typeof projectDialog.showModal === "function" && !projectDialog.open) {
