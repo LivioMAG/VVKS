@@ -209,11 +209,11 @@ textarea {
   grid-template-columns: 180px 1fr;
   gap: 0.65rem;
   align-items: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: 20px;
 }
 
-.chart-row.group-break {
-  margin-bottom: 1.25rem;
+.chart-row:last-child {
+  margin-bottom: 0;
 }
 
 .chart-label {
