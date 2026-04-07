@@ -169,6 +169,72 @@ textarea {
   margin-bottom: 0.9rem;
 }
 
+
+.csv-actions-spacer {
+  flex: 1;
+  min-width: 48px;
+}
+
+.collapsible-body.collapsed {
+  display: none;
+}
+
+.collapse-btn {
+  white-space: nowrap;
+}
+
+.price-weight-box {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.75rem;
+  margin-bottom: 0.9rem;
+  background: #f8fbff;
+}
+
+.price-weight-box input[type="range"] {
+  width: 100%;
+  margin-top: 0.4rem;
+}
+
+.beautiful-chart {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+}
+
+.chart-row {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 0.65rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.chart-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.chart-bars {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.bar {
+  color: #0f172a;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.45rem;
+  min-width: 70px;
+  white-space: nowrap;
+}
+
+.bar.final { background: #93c5fd; }
+.bar.functional { background: #bfdbfe; }
+.bar.price { background: #fde68a; }
+
 .list {
   display: grid;
   gap: 0.55rem;
@@ -321,4 +387,5 @@ td select {
   .grid-form { grid-template-columns: 1fr; }
   .span-2 { grid-column: span 1; }
   .section-head { align-items: flex-start; flex-direction: column; }
+  .chart-row { grid-template-columns: 1fr; }
 }

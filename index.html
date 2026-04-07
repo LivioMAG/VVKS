@@ -23,7 +23,7 @@
     <header class="app-header">
       <div>
         <h1>Anforderungs- und Produktevaluation</h1>
-        <p>Frontend-basierte Bewertung mit automatischer Auswertung und PDF-Export</p>
+        <p id="projectNameDisplay">Frontend-basierte Bewertung mit automatischer Auswertung und PDF-Export</p>
       </div>
       <div class="header-actions">
         <button id="openProjectBtn" class="btn btn-ghost">Projekt öffnen</button>
@@ -34,94 +34,100 @@
     </header>
 
     <main class="layout">
-      <section class="card">
+      <section class="card" id="requirementsCard">
         <div class="section-head">
           <h2>Anforderungen</h2>
+          <button type="button" id="toggleRequirementsBtn" class="btn btn-ghost collapse-btn" hidden>Minimieren</button>
         </div>
-        <div class="csv-actions">
-          <button type="button" id="downloadRequirementsTemplateBtn" class="btn btn-ghost">CSV-Template herunterladen</button>
-          <button type="button" id="uploadRequirementsCsvBtn" class="btn btn-ghost">Anforderungen Upload</button>
-          <button type="button" id="requirementsInfoBtn" class="btn btn-ghost" title="Info anzeigen" aria-label="Info anzeigen">ℹ️</button>
-          <button type="button" id="requirementsPromptBtn" class="btn btn-ghost" title="Prompt anzeigen" aria-label="Prompt anzeigen">🤖</button>
-          <input id="requirementsCsvInput" type="file" accept=".csv,text/csv" hidden />
-        </div>
-        <form id="requirementForm" class="grid-form">
-          <label>
-            Titel / Name
-            <input type="text" name="title" required placeholder="z. B. ISO 27001 Compliance" />
-          </label>
-          <label>
-            Kategorie
-            <input type="text" name="category" required placeholder="z. B. Sicherheit" />
-          </label>
-          <label class="span-2">
-            Beschreibung
-            <textarea name="description" rows="2" required placeholder="Kurzbeschreibung der Anforderung"></textarea>
-          </label>
-          <label>
-            Typ
-            <select name="type" required>
-              <option value="must">Must-have</option>
-              <option value="nice">Nice-to-have</option>
-            </select>
-          </label>
-          <label>
-            Priorität
-            <select name="priority" required>
-              <option value="critical">Zwingend</option>
-              <option value="high">Hoch</option>
-              <option value="medium">Mittel</option>
-              <option value="low">Niedrig</option>
-            </select>
-          </label>
-          <label class="span-2">
-            Bemerkung (optional)
-            <input type="text" name="note" placeholder="Optional" />
-          </label>
-          <div class="actions span-2">
-            <button type="submit" class="btn btn-secondary">Anforderung hinzufügen</button>
+        <div class="collapsible-body" id="requirementsBody">
+          <div class="csv-actions">
+            <button type="button" id="uploadRequirementsCsvBtn" class="btn btn-ghost">Anfordern Upload</button>
+            <span class="csv-actions-spacer" aria-hidden="true"></span>
+            <button type="button" id="requirementsPromptBtn" class="btn btn-ghost" title="Prompt anzeigen" aria-label="Prompt anzeigen">🤖</button>
+            <button type="button" id="requirementsInfoBtn" class="btn btn-ghost" title="Info anzeigen" aria-label="Info anzeigen">ℹ️</button>
+            <input id="requirementsCsvInput" type="file" accept=".csv,text/csv" hidden />
           </div>
-        </form>
-        <div id="requirementsList" class="list"></div>
+          <form id="requirementForm" class="grid-form">
+            <label>
+              Titel / Name
+              <input type="text" name="title" required placeholder="z. B. ISO 27001 Compliance" />
+            </label>
+            <label>
+              Kategorie
+              <input type="text" name="category" required placeholder="z. B. Sicherheit" />
+            </label>
+            <label class="span-2">
+              Beschreibung
+              <textarea name="description" rows="2" required placeholder="Kurzbeschreibung der Anforderung"></textarea>
+            </label>
+            <label>
+              Typ
+              <select name="type" required>
+                <option value="must">Must-have</option>
+                <option value="nice">Nice-to-have</option>
+              </select>
+            </label>
+            <label>
+              Priorität
+              <select name="priority" required>
+                <option value="critical">Zwingend</option>
+                <option value="high">Hoch</option>
+                <option value="medium">Mittel</option>
+                <option value="low">Niedrig</option>
+              </select>
+            </label>
+            <label class="span-2">
+              Bemerkung (optional)
+              <input type="text" name="note" placeholder="Optional" />
+            </label>
+            <div class="actions span-2">
+              <button type="submit" class="btn btn-secondary">Anforderung hinzufügen</button>
+            </div>
+          </form>
+          <div id="requirementsList" class="list"></div>
+        </div>
       </section>
 
-      <section class="card">
+      <section class="card" id="productsCard">
         <div class="section-head">
           <h2>Produkte</h2>
+          <button type="button" id="toggleProductsBtn" class="btn btn-ghost collapse-btn" hidden>Minimieren</button>
         </div>
-        <div class="csv-actions">
-          <button type="button" id="downloadProductsTemplateBtn" class="btn btn-ghost">CSV-Template herunterladen</button>
-          <button type="button" id="uploadProductsCsvBtn" class="btn btn-ghost">CSV hochladen</button>
-          <button type="button" id="productsInfoBtn" class="btn btn-ghost">ℹ️ Info</button>
-          <button type="button" id="productsPromptBtn" class="btn btn-ghost">🤖 Prompt anzeigen</button>
-          <input id="productsCsvInput" type="file" accept=".csv,text/csv" hidden />
-        </div>
-        <form id="productForm" class="grid-form">
-          <label>
-            Produktname
-            <input type="text" name="name" required placeholder="z. B. Produkt A" />
-          </label>
-          <label>
-            Hersteller
-            <input type="text" name="vendor" required placeholder="z. B. Firma XY" />
-          </label>
-          <label class="span-2">
-            Kurzbeschreibung
-            <textarea name="summary" rows="2" required placeholder="Kurzbeschreibung des Produkts"></textarea>
-          </label>
-          <label>
-            Preis / Preisnotiz
-            <input type="text" name="price" placeholder="z. B. 49 € / Monat" />
-          </label>
-          <label>
-            Bemerkung
-            <input type="text" name="note" placeholder="Optional" />
-          </label>
-          <div class="actions span-2">
-            <button type="submit" class="btn btn-secondary">Produkt hinzufügen</button>
+        <div class="collapsible-body" id="productsBody">
+          <div class="csv-actions">
+            <button type="button" id="uploadProductsCsvBtn" class="btn btn-ghost">Produkt Uploaden</button>
+            <span class="csv-actions-spacer" aria-hidden="true"></span>
+            <button type="button" id="productsPromptBtn" class="btn btn-ghost">🤖</button>
+            <button type="button" id="productsInfoBtn" class="btn btn-ghost">ℹ️</button>
+            <input id="productsCsvInput" type="file" accept=".csv,text/csv" hidden />
           </div>
-        </form>
-        <div id="productsList" class="list"></div>
+          <form id="productForm" class="grid-form">
+            <label>
+              Produktname
+              <input type="text" name="name" required placeholder="z. B. Produkt A" />
+            </label>
+            <label>
+              Hersteller
+              <input type="text" name="vendor" required placeholder="z. B. Firma XY" />
+            </label>
+            <label class="span-2">
+              Kurzbeschreibung
+              <textarea name="summary" rows="2" required placeholder="Kurzbeschreibung des Produkts"></textarea>
+            </label>
+            <label>
+              Preis / Preisnotiz
+              <input type="text" name="price" placeholder="z. B. 49 € / Monat" />
+            </label>
+            <label>
+              Bemerkung
+              <input type="text" name="note" placeholder="Optional" />
+            </label>
+            <div class="actions span-2">
+              <button type="submit" class="btn btn-secondary">Produkt hinzufügen</button>
+            </div>
+          </form>
+          <div id="productsList" class="list"></div>
+        </div>
       </section>
 
       <section class="card span-full">
@@ -136,15 +142,14 @@
       </section>
     </main>
 
-    <template id="pillTemplate">
-      <span class="pill"></span>
-    </template>
-
-
     <dialog id="projectDialog" class="onboarding-dialog">
       <article>
         <h2>Projekt laden</h2>
         <p class="meta">Bitte wählen Sie beim Start: neues Projekt oder bestehende Projekt-CSV öffnen.</p>
+        <label>
+          Projektname
+          <input id="projectNameInput" type="text" placeholder="z. B. ERP-Evaluation 2026" />
+        </label>
         <div class="dialog-actions">
           <button id="createProjectBtn" type="button" class="btn btn-primary">Neues Projekt erstellen</button>
           <button id="chooseProjectBtn" type="button" class="btn btn-secondary">Projekt öffnen (CSV)</button>

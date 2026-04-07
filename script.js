@@ -1,10 +1,10 @@
 // Anforderungs- und Produktevaluation (Frontend-only)
 // Datenhaltung: sessionStorage (nur aktuelle Browser-Sitzung)
 
-const STORAGE_KEY = "evaluation_app_state_v1";
+const STORAGE_KEY = "evaluation_app_state_v2";
 
 const PRIORITY_POINTS = {
-  critical: 5, // gleichzeitig Ausschlusskriterium
+  critical: 5,
   high: 4,
   medium: 3,
   low: 1,
@@ -45,12 +45,12 @@ const projectDialog = document.getElementById("projectDialog");
 const createProjectBtn = document.getElementById("createProjectBtn");
 const chooseProjectBtn = document.getElementById("chooseProjectBtn");
 const projectCsvInput = document.getElementById("projectCsvInput");
-const downloadRequirementsTemplateBtn = document.getElementById("downloadRequirementsTemplateBtn");
+const projectNameInput = document.getElementById("projectNameInput");
+const projectNameDisplay = document.getElementById("projectNameDisplay");
 const uploadRequirementsCsvBtn = document.getElementById("uploadRequirementsCsvBtn");
 const requirementsCsvInput = document.getElementById("requirementsCsvInput");
 const requirementsInfoBtn = document.getElementById("requirementsInfoBtn");
 const requirementsPromptBtn = document.getElementById("requirementsPromptBtn");
-const downloadProductsTemplateBtn = document.getElementById("downloadProductsTemplateBtn");
 const uploadProductsCsvBtn = document.getElementById("uploadProductsCsvBtn");
 const productsCsvInput = document.getElementById("productsCsvInput");
 const productsInfoBtn = document.getElementById("productsInfoBtn");
@@ -60,20 +60,25 @@ const helperDialogTitle = document.getElementById("helperDialogTitle");
 const helperDialogText = document.getElementById("helperDialogText");
 const helperDialogPrompt = document.getElementById("helperDialogPrompt");
 const helperDialogCloseBtn = document.getElementById("helperDialogCloseBtn");
+const toggleRequirementsBtn = document.getElementById("toggleRequirementsBtn");
+const toggleProductsBtn = document.getElementById("toggleProductsBtn");
+const requirementsBody = document.getElementById("requirementsBody");
+const productsBody = document.getElementById("productsBody");
 
 const csvAssistantConfig = {
   requirements: {
     label: "Anforderungen",
     info:
-      "1) Klicke auf 🤖 und kopiere den Prompt. 2) Füge den Prompt in ein Sprachmodell deiner Wahl ein (z. B. ChatGPT). 3) Gehe in dein Dokument und kopiere die betrieblichen Anforderungen inklusive Untertitel der Thematiken aus dem Standarddokument (Kapitel 3) unter den Prompt. 4) Achte darauf: Erst Prompt, danach der kopierte Anforderungs-Abschnitt. 5) Sende die Anfrage ab. 6) Lade die erzeugte Datei herunter und importiere sie hier über 'Anforderungen Upload'. 7) Prüfe anschließend die einzelnen Anforderungen.",
+      "Prompt kopieren → LLM öffnen (z. B. ChatGPT) → Prompt einfügen → darunter den Fließtext mit deinen Anforderungen ergänzen → ausführen → erzeugte CSV herunterladen → hier per Upload importieren.",
     prompt:
-      "Erstelle eine CSV-Datei zum Download (kein Fließtext). Nutze exakt die Spalten: title,category,description,type,priority,note. type nur must/nice, priority nur critical/high/medium/low. Unten findest du die betrieblichen Anforderungen. Kategorisiere jede Anforderung selbstständig als Must-have oder Nice-to-have und ordne die Wichtigkeit eigenständig als zwingend (critical), hoch (high), mittel (medium) oder niedrig (low) ein.",
+      "Erstelle eine CSV-Datei zum Download (kein Fließtext). Nutze exakt die Spalten: title,category,description,type,priority,note. type nur must/nice, priority nur critical/high/medium/low. Unten findest du die betrieblichen Anforderungen. Kategorisiere jede Anforderung als Must-have oder Nice-to-have und bestimme die Priorität eigenständig.",
   },
   products: {
     label: "Produkte",
-    info: "1) CSV-Template herunterladen. 2) Inhalte in CSV eintragen (Spalten unverändert lassen). 3) Datei über 'CSV hochladen' importieren.",
+    info:
+      "Prompt kopieren → LLM öffnen (z. B. ChatGPT) → Prompt eingeben → alle gewünschten Produkte als Fließtext darunter einfügen (z. B. aus Webseiten kopiert) → Run klicken → CSV herunterladen → hier hochladen.",
     prompt:
-      "Erstelle eine CSV-Datei zum Download (kein Fließtext). Nutze exakt die Spalten: name,vendor,summary,price,note.",
+      "Erstelle eine CSV-Datei zum Download (kein Fließtext). Nutze exakt die Spalten: name,vendor,summary,price,note. Unten folgen Produktinformationen als Fließtext. Extrahiere alle Produkte in eine saubere CSV mit einer Zeile pro Produkt.",
   },
 };
 let editingRequirementId = null;
@@ -130,16 +135,26 @@ resetBtn.addEventListener("click", () => {
   const confirmReset = window.confirm("Alle Daten in dieser Sitzung wirklich löschen?");
   if (!confirmReset) return;
   sessionStorage.removeItem(STORAGE_KEY);
+  state.projectName = "";
   state.requirements = [];
   state.products = [];
   state.ratings = {};
+  state.collapsed = { requirements: false, products: false };
   render();
+  if (projectDialog?.showModal) projectDialog.showModal();
 });
 
 createProjectBtn.addEventListener("click", () => {
+  const enteredName = (projectNameInput.value || "").trim();
+  if (!enteredName) {
+    window.alert("Bitte einen Projektnamen eingeben.");
+    return;
+  }
+  state.projectName = enteredName;
   state.requirements = [];
   state.products = [];
   state.ratings = {};
+  state.collapsed = { requirements: false, products: false };
   editingRequirementId = null;
   editingProductId = null;
   setFormEditingState("requirement", false);
@@ -158,9 +173,12 @@ projectCsvInput.addEventListener("change", async () => {
   try {
     const rows = parseCsv(await file.text());
     const importedState = rowsToProjectState(rows);
+    state.projectName = importedState.projectName;
+    state.priceWeight = importedState.priceWeight;
     state.requirements = importedState.requirements;
     state.products = importedState.products;
     state.ratings = importedState.ratings;
+    state.collapsed = importedState.collapsed;
     editingRequirementId = null;
     editingProductId = null;
     setFormEditingState("requirement", false);
@@ -176,7 +194,8 @@ projectCsvInput.addEventListener("change", async () => {
 });
 
 exportProjectBtn.addEventListener("click", () => {
-  downloadCsvFile(`evaluation-projekt-${new Date().toISOString().slice(0, 10)}.csv`, buildProjectCsvRows());
+  const fileName = `${slugifyProjectName(getProjectName())}-${new Date().toISOString().slice(0, 10)}.csv`;
+  downloadCsvFile(fileName, buildProjectCsvRows());
 });
 
 exportPdfBtn.addEventListener("click", () => {
@@ -187,21 +206,15 @@ exportPdfBtn.addEventListener("click", () => {
 
   const report = buildPdfReportNode();
   const opt = {
-    margin: [12, 10, 12, 10],
-    filename: `evaluation-report-${new Date().toISOString().slice(0, 10)}.pdf`,
+    margin: [10, 8, 10, 8],
+    filename: `${slugifyProjectName(getProjectName())}-report-${new Date().toISOString().slice(0, 10)}.pdf`,
     image: { type: "jpeg", quality: 0.98 },
     html2canvas: { scale: 2, useCORS: true },
-    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+    jsPDF: { unit: "mm", format: "a4", orientation: "landscape" },
     pagebreak: { mode: ["avoid-all", "css", "legacy"] },
   };
 
   window.html2pdf().set(opt).from(report).save();
-});
-
-downloadRequirementsTemplateBtn.addEventListener("click", () => {
-  const headers = ["title", "category", "description", "type", "priority", "note"];
-  const exampleRow = ["ISO 27001 Compliance", "Sicherheit", "Nachweisbare Zertifizierung", "must", "critical", "Pflicht bei Ausschreibungen"];
-  downloadCsvFile("anforderungen-template.csv", [headers, exampleRow]);
 });
 
 uploadRequirementsCsvBtn.addEventListener("click", () => requirementsCsvInput.click());
@@ -223,12 +236,6 @@ requirementsCsvInput.addEventListener("change", async () => {
   } finally {
     requirementsCsvInput.value = "";
   }
-});
-
-downloadProductsTemplateBtn.addEventListener("click", () => {
-  const headers = ["name", "vendor", "summary", "price", "note"];
-  const exampleRow = ["Produkt A", "Firma XY", "Cloud-Lösung für X", "49 € / Monat", "Pilot verfügbar"];
-  downloadCsvFile("produkte-template.csv", [headers, exampleRow]);
 });
 
 uploadProductsCsvBtn.addEventListener("click", () => productsCsvInput.click());
@@ -257,17 +264,30 @@ requirementsPromptBtn.addEventListener("click", () => openHelperDialog("requirem
 productsInfoBtn.addEventListener("click", () => openHelperDialog("products", "info"));
 productsPromptBtn.addEventListener("click", () => openHelperDialog("products", "prompt"));
 helperDialogCloseBtn.addEventListener("click", () => helperDialog.close());
+toggleRequirementsBtn.addEventListener("click", () => {
+  state.collapsed.requirements = !state.collapsed.requirements;
+  persistAndRender();
+});
+toggleProductsBtn.addEventListener("click", () => {
+  state.collapsed.products = !state.collapsed.products;
+  persistAndRender();
+});
 
 function loadState() {
-  const fallback = { requirements: [], products: [], ratings: {} };
+  const fallback = { projectName: "", requirements: [], products: [], ratings: {}, collapsed: { requirements: false, products: false } };
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return fallback;
     const parsed = JSON.parse(raw);
     return {
+      projectName: typeof parsed.projectName === "string" ? parsed.projectName : "",
       requirements: Array.isArray(parsed.requirements) ? parsed.requirements : [],
       products: Array.isArray(parsed.products) ? parsed.products : [],
       ratings: parsed.ratings && typeof parsed.ratings === "object" ? parsed.ratings : {},
+      collapsed: {
+        requirements: Boolean(parsed.collapsed?.requirements),
+        products: Boolean(parsed.collapsed?.products),
+      },
     };
   } catch {
     return fallback;
@@ -280,10 +300,34 @@ function persistAndRender() {
 }
 
 function render() {
+  renderHeaderProjectName();
+  renderCollapseUi();
   renderRequirements();
   renderProducts();
   renderMatrix();
   renderResults();
+}
+
+function renderHeaderProjectName() {
+  projectNameDisplay.textContent = state.projectName
+    ? `Projekt: ${state.projectName}`
+    : "Frontend-basierte Bewertung mit automatischer Auswertung und PDF-Export";
+}
+
+function renderCollapseUi() {
+  const reqToggleVisible = state.requirements.length > 1;
+  const prdToggleVisible = state.products.length > 2;
+  toggleRequirementsBtn.hidden = !reqToggleVisible;
+  toggleProductsBtn.hidden = !prdToggleVisible;
+
+  if (!reqToggleVisible) state.collapsed.requirements = false;
+  if (!prdToggleVisible) state.collapsed.products = false;
+
+  requirementsBody.classList.toggle("collapsed", state.collapsed.requirements);
+  productsBody.classList.toggle("collapsed", state.collapsed.products);
+
+  toggleRequirementsBtn.textContent = state.collapsed.requirements ? "Erweitern" : "Minimieren";
+  toggleProductsBtn.textContent = state.collapsed.products ? "Erweitern" : "Minimieren";
 }
 
 function renderRequirements() {
@@ -449,8 +493,9 @@ function renderResults() {
       return `
         <article class="score-card ${winnerId === item.id && !excluded ? "winner" : ""}">
           <h3>${idx + 1}. ${escapeHtml(item.name)}</h3>
-          <p class="meta">Punkte: <strong>${item.points.toFixed(2)}</strong> / ${evaluation.maxPoints.toFixed(2)}</p>
+          <p class="meta">Anforderungs-Punkte: <strong>${item.points.toFixed(2)}</strong> / ${evaluation.maxPoints.toFixed(2)}</p>
           <p class="meta">Erfüllung: <strong>${item.percent.toFixed(1)}%</strong></p>
+          <p class="meta">Preis: <strong>${item.priceRaw || "k. A."}</strong></p>
           <p class="${excluded ? "status-bad" : "status-ok"}">
             ${excluded ? "Ausgeschlossen (zwingende Anforderung nicht erfüllt)" : "Zulässig"}
           </p>
@@ -459,17 +504,38 @@ function renderResults() {
     })
     .join("");
 
+  const qualified = evaluation.ranking.filter((item) => !item.excluded);
+  const chartRows = qualified.length
+    ? qualified
+        .map((item) => {
+          const finalWidth = Math.max(0, Math.min(100, item.finalScore));
+          const functionalWidth = Math.max(0, Math.min(100, item.percent));
+          const priceWidth = Math.max(0, Math.min(100, item.priceScore));
+          return `
+            <div class="chart-row">
+              <div class="chart-label">${escapeHtml(item.name)}</div>
+              <div class="chart-bars">
+                <div class="bar final" style="width:${finalWidth}%">Gesamt ${finalWidth.toFixed(1)}%</div>
+                <div class="bar functional" style="width:${functionalWidth}%">Anforderung ${functionalWidth.toFixed(1)}%</div>
+                <div class="bar price" style="width:${priceWidth}%">Preis ${priceWidth.toFixed(1)}%</div>
+              </div>
+            </div>
+          `;
+        })
+        .join("")
+    : "<p class='meta'>Keine zulässigen Produkte für die Preis-Gesamtauswertung vorhanden.</p>";
+
   const detailsRows = evaluation.ranking
     .map((item, idx) => {
-      const failed = item.failedCritical.length
-        ? item.failedCritical.map((r) => escapeHtml(r)).join(", ")
-        : "Keine";
+      const failed = item.failedCritical.length ? item.failedCritical.map((r) => escapeHtml(r)).join(", ") : "Keine";
       return `
         <tr>
           <td>${idx + 1}</td>
           <td>${escapeHtml(item.name)}</td>
           <td>${item.points.toFixed(2)}</td>
           <td>${item.percent.toFixed(1)}%</td>
+          <td>${item.priceScore.toFixed(1)}%</td>
+          <td>${item.finalScore.toFixed(1)}%</td>
           <td>${item.failedCritical.length ? `<span class='status-bad'>${failed}</span>` : `<span class='status-ok'>Keine</span>`}</td>
         </tr>
       `;
@@ -478,31 +544,51 @@ function renderResults() {
 
   const winner = evaluation.ranking.find((i) => i.id === winnerId);
   const winnerText = winner
-    ? `<p><strong>Bestes Produkt:</strong> ${escapeHtml(winner.name)} (${winner.percent.toFixed(1)}%)</p>`
+    ? `<p><strong>Bestes Produkt:</strong> ${escapeHtml(winner.name)} (${winner.finalScore.toFixed(1)}% Gesamt)</p>`
     : "<p>Kein Gewinner vorhanden.</p>";
 
   resultsContent.innerHTML = `
     <div class="result-grid">${cards}</div>
+    <div class="price-weight-box">
+      <label>
+        Preis-Relevanz in der Gesamtauswertung: <strong><span id="priceWeightValue">${evaluation.priceWeight}%</span></strong>
+        <input id="priceWeightSlider" type="range" min="0" max="100" step="5" value="${evaluation.priceWeight}" />
+      </label>
+      <p class="meta">0% = nur Anforderungserfüllung, 100% = nur Preisvergleich.</p>
+    </div>
     ${winnerText}
+    <div class="beautiful-chart" id="beautifulChart">
+      <h3>Grafische Gesamtauswertung (inkl. Preisfaktor)</h3>
+      ${chartRows}
+    </div>
     <table>
       <thead>
         <tr>
           <th>Ranking</th>
           <th>Produkt</th>
-          <th>Gesamtpunkte</th>
-          <th>Erfüllung</th>
+          <th>Punkte</th>
+          <th>Anforderungen</th>
+          <th>Preis-Score</th>
+          <th>Gesamt-Score</th>
           <th>Zwingende nicht erfüllt</th>
         </tr>
       </thead>
       <tbody>${detailsRows}</tbody>
     </table>
   `;
+
+  const priceWeightSlider = document.getElementById("priceWeightSlider");
+  priceWeightSlider?.addEventListener("input", () => {
+    state.priceWeight = Number(priceWeightSlider.value);
+    persistAndRender();
+  });
 }
 
 function evaluateProducts() {
   const maxPoints = state.requirements.reduce((sum, req) => sum + getRequirementWeight(req), 0);
+  const priceWeight = Number.isFinite(state.priceWeight) ? state.priceWeight : 30;
 
-  const ranking = state.products.map((prd) => {
+  const ranked = state.products.map((prd) => {
     let points = 0;
     const failedCritical = [];
 
@@ -529,110 +615,91 @@ function evaluateProducts() {
       percent,
       failedCritical,
       excluded,
+      priceRaw: prd.price || "",
+      priceValue: extractPriceValue(prd.price),
+      priceScore: 0,
+      finalScore: percent,
     };
   });
 
-  ranking.sort((a, b) => {
+  const qualified = ranked.filter((item) => !item.excluded && Number.isFinite(item.priceValue));
+  if (qualified.length) {
+    const minPrice = Math.min(...qualified.map((item) => item.priceValue));
+    const maxPrice = Math.max(...qualified.map((item) => item.priceValue));
+    ranked.forEach((item) => {
+      if (!Number.isFinite(item.priceValue)) {
+        item.priceScore = 50;
+      } else if (maxPrice === minPrice) {
+        item.priceScore = 100;
+      } else {
+        item.priceScore = ((maxPrice - item.priceValue) / (maxPrice - minPrice)) * 100;
+      }
+      item.finalScore = item.percent * ((100 - priceWeight) / 100) + item.priceScore * (priceWeight / 100);
+    });
+  } else {
+    ranked.forEach((item) => {
+      item.priceScore = 50;
+      item.finalScore = item.percent;
+    });
+  }
+
+  ranked.sort((a, b) => {
     if (a.excluded !== b.excluded) return a.excluded ? 1 : -1;
-    if (b.points !== a.points) return b.points - a.points;
-    return b.percent - a.percent;
+    if (b.finalScore !== a.finalScore) return b.finalScore - a.finalScore;
+    return b.points - a.points;
   });
 
-  return { maxPoints, ranking };
+  return { maxPoints, ranking: ranked, priceWeight };
 }
 
 function buildPdfReportNode() {
   const wrapper = document.createElement("div");
   const evaluation = evaluateProducts();
   const date = new Date().toLocaleDateString("de-DE");
+  const topProducts = evaluation.ranking.filter((item) => !item.excluded).slice(0, 2);
+  const chartRows = topProducts
+    .map(
+      (item) => `
+      <div style="margin-bottom:10px;">
+        <div style="font-weight:600;margin-bottom:4px;">${escapeHtml(item.name)}</div>
+        <div style="height:24px;background:#dbeafe;border-radius:8px;width:${Math.max(1, Math.min(100, item.finalScore))}%;padding:3px 8px;color:#1e3a8a;">Gesamt ${item.finalScore.toFixed(1)}%</div>
+      </div>`
+    )
+    .join("");
 
   wrapper.style.padding = "16px";
   wrapper.style.fontFamily = "Inter, Arial, sans-serif";
   wrapper.style.color = "#1f2937";
   wrapper.innerHTML = `
-    <h1 style="margin-bottom:4px;">Anforderungs- und Produktevaluation</h1>
-    <p style="margin-top:0;color:#6b7280;">Datum: ${date}</p>
-    <h2>Zusammenfassung</h2>
-    <p>Anforderungen: ${state.requirements.length} | Produkte: ${state.products.length}</p>
+    <h1 style="margin-bottom:4px;">${escapeHtml(getProjectName())}</h1>
+    <p style="margin-top:0;color:#6b7280;">Evaluation Report – ${date}</p>
 
-    <h2>Anforderungen</h2>
+    <h2>Top 2 Produkte</h2>
     <ul>
-      ${state.requirements
-        .map(
-          (req) =>
-            `<li><strong>${escapeHtml(req.title)}</strong> (${labelType(req.type)}, ${labelPriority(req.priority)}, Gewicht ${getRequirementWeight(req).toFixed(1)})<br>${escapeHtml(req.description)}</li>`
-        )
-        .join("")}
+      ${topProducts.map((item) => `<li><strong>${escapeHtml(item.name)}</strong> – Gesamt ${item.finalScore.toFixed(1)}%</li>`).join("") || "<li>Keine zulässigen Produkte vorhanden.</li>"}
     </ul>
 
-    <h2>Produkte</h2>
+    <h2>Anforderungen (nur Titel)</h2>
     <ul>
-      ${state.products
-        .map((prd) => `<li><strong>${escapeHtml(prd.name)}</strong> – ${escapeHtml(prd.vendor)}<br>${escapeHtml(prd.summary)}</li>`)
-        .join("")}
+      ${state.requirements.map((req) => `<li>${escapeHtml(req.title)}</li>`).join("")}
     </ul>
 
-    <h2>Bewertungsmatrix</h2>
-    ${buildMatrixTableForPdf()}
-
-    <h2>Punktebewertung / Ranking</h2>
-    ${buildRankingTableForPdf(evaluation)}
-
-    <h2>Hinweise zu zwingenden Anforderungen</h2>
-    <ul>
-      ${evaluation.ranking
-        .map((item) =>
-          item.failedCritical.length
-            ? `<li><strong>${escapeHtml(item.name)}:</strong> ${item.failedCritical.map((entry) => escapeHtml(entry)).join(", ")}</li>`
-            : `<li><strong>${escapeHtml(item.name)}:</strong> keine offenen zwingenden Anforderungen</li>`
-        )
-        .join("")}
-    </ul>
+    <h2>Grafische Auswertung</h2>
+    ${chartRows || "<p>Keine Grafik verfügbar.</p>"}
   `;
 
   return wrapper;
 }
 
-function buildMatrixTableForPdf() {
-  if (!state.requirements.length || !state.products.length) return "<p>Keine Daten verfügbar.</p>";
-  let html = "<table style='width:100%;border-collapse:collapse;font-size:11px'><thead><tr><th style='border:1px solid #cbd5e1;padding:4px'>Anforderung</th>";
-  state.products.forEach((prd) => {
-    html += `<th style='border:1px solid #cbd5e1;padding:4px'>${escapeHtml(prd.name)}</th>`;
-  });
-  html += "</tr></thead><tbody>";
-  state.requirements.forEach((req) => {
-    html += `<tr><td style='border:1px solid #cbd5e1;padding:4px'>${escapeHtml(req.title)}</td>`;
-    state.products.forEach((prd) => {
-      const rating = state.ratings[ratingKey(req.id, prd.id)] || "na";
-      html += `<td style='border:1px solid #cbd5e1;padding:4px'>${RATING_LABELS[rating]}</td>`;
-    });
-    html += "</tr>";
-  });
-  html += "</tbody></table>";
-  return html;
-}
-
-function buildRankingTableForPdf(evaluation) {
-  let html = "<table style='width:100%;border-collapse:collapse;font-size:11px'><thead><tr>";
-  html += "<th style='border:1px solid #cbd5e1;padding:4px'>Rang</th><th style='border:1px solid #cbd5e1;padding:4px'>Produkt</th><th style='border:1px solid #cbd5e1;padding:4px'>Punkte</th><th style='border:1px solid #cbd5e1;padding:4px'>Erfüllung</th><th style='border:1px solid #cbd5e1;padding:4px'>Status</th>";
-  html += "</tr></thead><tbody>";
-
-  evaluation.ranking.forEach((item, idx) => {
-    html += `<tr>
-      <td style='border:1px solid #cbd5e1;padding:4px'>${idx + 1}</td>
-      <td style='border:1px solid #cbd5e1;padding:4px'>${escapeHtml(item.name)}</td>
-      <td style='border:1px solid #cbd5e1;padding:4px'>${item.points.toFixed(2)} / ${evaluation.maxPoints.toFixed(2)}</td>
-      <td style='border:1px solid #cbd5e1;padding:4px'>${item.percent.toFixed(1)}%</td>
-      <td style='border:1px solid #cbd5e1;padding:4px'>${item.excluded ? "Ausgeschlossen" : "Zulässig"}</td>
-    </tr>`;
-  });
-
-  html += "</tbody></table>";
-  return html;
-}
-
 function getRequirementWeight(req) {
   return PRIORITY_POINTS[req.priority] * TYPE_FACTOR[req.type];
+}
+
+function extractPriceValue(priceText) {
+  if (!priceText) return Number.NaN;
+  const cleaned = priceText.replace(/\./g, "").replace(",", ".");
+  const match = cleaned.match(/\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : Number.NaN;
 }
 
 function rowsToRequirements(rows) {
@@ -778,11 +845,12 @@ function toCsvCell(value) {
   return text;
 }
 
-
 function buildProjectCsvRows() {
   const rows = [["section", "id", "field", "value"]];
-  rows.push(["meta", "project", "version", "1"]);
+  rows.push(["meta", "project", "version", "2"]);
   rows.push(["meta", "project", "exportedAt", new Date().toISOString()]);
+  rows.push(["meta", "project", "projectName", getProjectName()]);
+  rows.push(["meta", "project", "priceWeight", String(state.priceWeight ?? 30)]);
 
   state.requirements.forEach((req) => {
     rows.push(["requirements", req.id, "title", req.title]);
@@ -815,6 +883,7 @@ function rowsToProjectState(rows) {
   const requirementsMap = new Map();
   const productsMap = new Map();
   const ratings = {};
+  const meta = {};
 
   rows.data.forEach((entry, idx) => {
     const section = (entry.section || "").trim().toLowerCase();
@@ -823,7 +892,10 @@ function rowsToProjectState(rows) {
     const value = (entry.value || "").trim();
     const rowNo = idx + 2;
 
-    if (section === "meta") return;
+    if (section === "meta") {
+      meta[field] = value;
+      return;
+    }
 
     if (!section || !id || !field) {
       throw new Error(`Projekt CSV: Ungültige Zeile ${rowNo}. section, id und field sind Pflicht.`);
@@ -881,7 +953,14 @@ function rowsToProjectState(rows) {
     }
   });
 
-  return { requirements, products, ratings: filteredRatings };
+  return {
+    projectName: meta.projectname || "Importiertes Projekt",
+    priceWeight: clamp(Number(meta.priceweight ?? 30), 0, 100),
+    requirements,
+    products,
+    ratings: filteredRatings,
+    collapsed: { requirements: false, products: false },
+  };
 }
 
 function ratingKey(requirementId, productId) {
@@ -905,6 +984,23 @@ function labelPriority(priority) {
   }[priority];
 }
 
+function getProjectName() {
+  return state.projectName?.trim() || "Evaluation";
+}
+
+function slugifyProjectName(name) {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "evaluation";
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
+}
+
 function escapeHtml(value) {
   return value
     .toString()
@@ -916,8 +1012,9 @@ function escapeHtml(value) {
 }
 
 function initializeProjectPicker() {
+  if (!Number.isFinite(state.priceWeight)) state.priceWeight = 30;
   render();
-  if (typeof projectDialog.showModal === "function" && !projectDialog.open) {
+  if (!state.projectName && typeof projectDialog.showModal === "function" && !projectDialog.open) {
     projectDialog.showModal();
   }
 }
@@ -925,12 +1022,8 @@ function initializeProjectPicker() {
 function openHelperDialog(type, mode) {
   const config = csvAssistantConfig[type];
   const showPrompt = mode === "prompt";
-  const promptHelpText =
-    type === "requirements"
-      ? "Kopiere den Prompt, füge ihn in ein Sprachmodell ein und ergänze darunter die betrieblichen Anforderungen aus deinem Dokument."
-      : "Kopiere diesen Prompt in ChatGPT und lasse dir eine CSV-Datei erstellen.";
   helperDialogTitle.textContent = showPrompt ? `${config.label}: ChatGPT Prompt` : `${config.label}: Info`;
-  helperDialogText.textContent = showPrompt ? promptHelpText : config.info;
+  helperDialogText.textContent = showPrompt ? "Kopiere den Prompt und füge darunter deinen Fließtext ein." : config.info;
   helperDialogPrompt.hidden = !showPrompt;
   helperDialogPrompt.textContent = showPrompt ? config.prompt : "";
   helperDialog.showModal();
