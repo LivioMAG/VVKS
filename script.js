@@ -549,17 +549,17 @@ function renderResults() {
     <div class="price-weight-box">
       <label>
         Must-Have Relevanz in der Gesamtauswertung: <strong><span id="mustWeightValue">${evaluation.mustWeight}%</span></strong>
-        <input id="mustWeightSlider" type="range" min="0" max="100" step="5" value="${evaluation.mustWeight}" />
+        <input id="mustWeightSlider" type="range" min="0" max="100" step="1" value="${evaluation.mustWeight}" />
       </label>
       <label>
         Nice to Have Relevanz in der Gesamtauswertung: <strong><span id="niceWeightValue">${evaluation.niceWeight}%</span></strong>
-        <input id="niceWeightSlider" type="range" min="0" max="100" step="5" value="${evaluation.niceWeight}" />
+        <input id="niceWeightSlider" type="range" min="0" max="100" step="1" value="${evaluation.niceWeight}" />
       </label>
       <label>
         Preis-Relevanz in der Gesamtauswertung: <strong><span id="priceWeightValue">${evaluation.priceWeight}%</span></strong>
-        <input id="priceWeightSlider" type="range" min="0" max="100" step="5" value="${evaluation.priceWeight}" />
+        <input id="priceWeightSlider" type="range" min="0" max="100" step="1" value="${evaluation.priceWeight}" />
       </label>
-      <p class="meta">Alle drei Regler sind unabhängig und müssen zusammen nicht 100% ergeben.</p>
+      <p class="meta">Die drei Regler sind gekoppelt und ergeben immer zusammen 100%.</p>
     </div>
     <div class="beautiful-chart" id="beautifulChart">
       <h3>Gesamtauswertung je Produkt (inkl. Preisfaktor)</h3>
@@ -573,24 +573,46 @@ function renderResults() {
 
   const mustWeightSlider = document.getElementById("mustWeightSlider");
   mustWeightSlider?.addEventListener("input", () => {
-    state.mustWeight = Number(mustWeightSlider.value);
+    setWeightsWithFixedTotal("mustWeight", Number(mustWeightSlider.value));
     persistAndRender();
   });
 
   const niceWeightSlider = document.getElementById("niceWeightSlider");
   niceWeightSlider?.addEventListener("input", () => {
-    state.niceWeight = Number(niceWeightSlider.value);
+    setWeightsWithFixedTotal("niceWeight", Number(niceWeightSlider.value));
     persistAndRender();
   });
 
   const priceWeightSlider = document.getElementById("priceWeightSlider");
   priceWeightSlider?.addEventListener("input", () => {
-    state.priceWeight = Number(priceWeightSlider.value);
+    setWeightsWithFixedTotal("priceWeight", Number(priceWeightSlider.value));
     persistAndRender();
   });
 }
 
+function setWeightsWithFixedTotal(changedKey, rawValue) {
+  const nextValue = clamp(Math.round(Number(rawValue) || 0), 0, 100);
+  const keys = ["mustWeight", "niceWeight", "priceWeight"];
+  const otherKeys = keys.filter((key) => key !== changedKey);
+  const remainder = 100 - nextValue;
+  const currentOtherTotal = otherKeys.reduce((sum, key) => sum + (Number(state[key]) || 0), 0);
+
+  state[changedKey] = nextValue;
+  if (currentOtherTotal <= 0) {
+    const firstShare = Math.round(remainder / 2);
+    state[otherKeys[0]] = firstShare;
+    state[otherKeys[1]] = remainder - firstShare;
+    return;
+  }
+
+  const firstProportional = (Number(state[otherKeys[0]]) || 0) / currentOtherTotal;
+  const firstShare = Math.round(remainder * firstProportional);
+  state[otherKeys[0]] = firstShare;
+  state[otherKeys[1]] = remainder - firstShare;
+}
+
 function evaluateProducts() {
+  normalizeWeightsToHundred();
   const mustWeight = Number.isFinite(state.mustWeight) ? state.mustWeight : 50;
   const niceWeight = Number.isFinite(state.niceWeight) ? state.niceWeight : 20;
   const priceWeight = Number.isFinite(state.priceWeight) ? state.priceWeight : 30;
@@ -723,8 +745,8 @@ function buildOverallChart(evaluation) {
   }
 
   return evaluation.ranking
-    .map((item, index) => `
-      <div class="chart-row ${(index + 1) % 3 === 0 ? "group-break" : ""}">
+    .map((item) => `
+      <div class="chart-row">
         <div class="chart-label ${item.excluded ? "muted-product" : ""}">${escapeHtml(item.name)}</div>
         <div class="chart-bars">
           <div class="bar final ${item.excluded ? "excluded" : ""}" style="width:${Math.max(2, Math.min(100, item.finalScore))}%">Gesamt ${item.finalScore.toFixed(1)}%</div>
@@ -802,8 +824,8 @@ function buildPdfReportNode() {
       }
       .pdf-footer-right { text-align: right; color: #334155; }
       .pdf-muted { color: #64748b; }
-      .chart-row { margin-bottom: 7px; }
-      .chart-row.group-break { margin-bottom: 15px; }
+      .chart-row { margin-bottom: 20px; }
+      .chart-row:last-child { margin-bottom: 0; }
       .chart-label { font-size: 11px; font-weight: 600; margin-bottom: 2px; }
       .chart-label.muted-product { color: #7c8798; }
       .chart-bars { display: grid; gap: 5px; }
@@ -1221,10 +1243,31 @@ function initializeProjectPicker() {
   if (!Number.isFinite(state.mustWeight)) state.mustWeight = 50;
   if (!Number.isFinite(state.niceWeight)) state.niceWeight = 20;
   if (!Number.isFinite(state.priceWeight)) state.priceWeight = 30;
+  normalizeWeightsToHundred();
   render();
   if (!state.projectName && typeof projectDialog.showModal === "function" && !projectDialog.open) {
     projectDialog.showModal();
   }
+}
+
+function normalizeWeightsToHundred() {
+  const rawMust = Number(state.mustWeight) || 0;
+  const rawNice = Number(state.niceWeight) || 0;
+  const rawPrice = Number(state.priceWeight) || 0;
+  const total = rawMust + rawNice + rawPrice;
+
+  if (total <= 0) {
+    state.mustWeight = 50;
+    state.niceWeight = 20;
+    state.priceWeight = 30;
+    return;
+  }
+
+  const must = Math.round((rawMust / total) * 100);
+  const nice = Math.round((rawNice / total) * 100);
+  state.mustWeight = must;
+  state.niceWeight = nice;
+  state.priceWeight = 100 - must - nice;
 }
 
 function openHelperDialog(type, mode) {
