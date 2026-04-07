@@ -39,6 +39,12 @@ const matrixContainer = document.getElementById("matrixContainer");
 const resultsContent = document.getElementById("resultsContent");
 const resetBtn = document.getElementById("resetBtn");
 const exportPdfBtn = document.getElementById("exportPdfBtn");
+const exportProjectBtn = document.getElementById("exportProjectBtn");
+const openProjectBtn = document.getElementById("openProjectBtn");
+const projectDialog = document.getElementById("projectDialog");
+const createProjectBtn = document.getElementById("createProjectBtn");
+const chooseProjectBtn = document.getElementById("chooseProjectBtn");
+const projectCsvInput = document.getElementById("projectCsvInput");
 const downloadRequirementsTemplateBtn = document.getElementById("downloadRequirementsTemplateBtn");
 const uploadRequirementsCsvBtn = document.getElementById("uploadRequirementsCsvBtn");
 const requirementsCsvInput = document.getElementById("requirementsCsvInput");
@@ -144,6 +150,49 @@ resetBtn.addEventListener("click", () => {
   state.products = [];
   state.ratings = {};
   render();
+});
+
+createProjectBtn.addEventListener("click", () => {
+  state.requirements = [];
+  state.products = [];
+  state.ratings = {};
+  editingRequirementId = null;
+  editingProductId = null;
+  setFormEditingState("requirement", false);
+  setFormEditingState("product", false);
+  persistAndRender();
+  projectDialog.close();
+});
+
+chooseProjectBtn.addEventListener("click", () => projectCsvInput.click());
+openProjectBtn.addEventListener("click", () => projectCsvInput.click());
+
+projectCsvInput.addEventListener("change", async () => {
+  const file = projectCsvInput.files?.[0];
+  if (!file) return;
+
+  try {
+    const rows = parseCsv(await file.text());
+    const importedState = rowsToProjectState(rows);
+    state.requirements = importedState.requirements;
+    state.products = importedState.products;
+    state.ratings = importedState.ratings;
+    editingRequirementId = null;
+    editingProductId = null;
+    setFormEditingState("requirement", false);
+    setFormEditingState("product", false);
+    persistAndRender();
+    if (projectDialog.open) projectDialog.close();
+    window.alert("Projekt erfolgreich geladen.");
+  } catch (error) {
+    window.alert(error.message);
+  } finally {
+    projectCsvInput.value = "";
+  }
+});
+
+exportProjectBtn.addEventListener("click", () => {
+  downloadCsvFile(`evaluation-projekt-${new Date().toISOString().slice(0, 10)}.csv`, buildProjectCsvRows());
 });
 
 exportPdfBtn.addEventListener("click", () => {
@@ -781,6 +830,112 @@ function toCsvCell(value) {
   return text;
 }
 
+
+function buildProjectCsvRows() {
+  const rows = [["section", "id", "field", "value"]];
+  rows.push(["meta", "project", "version", "1"]);
+  rows.push(["meta", "project", "exportedAt", new Date().toISOString()]);
+
+  state.requirements.forEach((req) => {
+    rows.push(["requirements", req.id, "title", req.title]);
+    rows.push(["requirements", req.id, "category", req.category]);
+    rows.push(["requirements", req.id, "description", req.description]);
+    rows.push(["requirements", req.id, "type", req.type]);
+    rows.push(["requirements", req.id, "priority", req.priority]);
+    rows.push(["requirements", req.id, "note", req.note || ""]);
+  });
+
+  state.products.forEach((prd) => {
+    rows.push(["products", prd.id, "name", prd.name]);
+    rows.push(["products", prd.id, "vendor", prd.vendor]);
+    rows.push(["products", prd.id, "summary", prd.summary]);
+    rows.push(["products", prd.id, "price", prd.price || ""]);
+    rows.push(["products", prd.id, "note", prd.note || ""]);
+  });
+
+  Object.entries(state.ratings).forEach(([key, rating]) => {
+    rows.push(["ratings", key, "rating", rating]);
+  });
+
+  return rows;
+}
+
+function rowsToProjectState(rows) {
+  const requiredHeaders = ["section", "id", "field", "value"];
+  ensureHeaders(rows.headers, requiredHeaders, "Projekt");
+
+  const requirementsMap = new Map();
+  const productsMap = new Map();
+  const ratings = {};
+
+  rows.data.forEach((entry, idx) => {
+    const section = (entry.section || "").trim().toLowerCase();
+    const id = (entry.id || "").trim();
+    const field = (entry.field || "").trim().toLowerCase();
+    const value = (entry.value || "").trim();
+    const rowNo = idx + 2;
+
+    if (section === "meta") return;
+
+    if (!section || !id || !field) {
+      throw new Error(`Projekt CSV: Ungültige Zeile ${rowNo}. section, id und field sind Pflicht.`);
+    }
+
+    if (section === "requirements") {
+      if (!requirementsMap.has(id)) requirementsMap.set(id, { id, title: "", category: "", description: "", type: "", priority: "", note: "" });
+      requirementsMap.get(id)[field] = value;
+      return;
+    }
+
+    if (section === "products") {
+      if (!productsMap.has(id)) productsMap.set(id, { id, name: "", vendor: "", summary: "", price: "", note: "" });
+      productsMap.get(id)[field] = value;
+      return;
+    }
+
+    if (section === "ratings") {
+      if (field !== "rating") {
+        throw new Error(`Projekt CSV: Ungültiges Feld in Zeile ${rowNo}. Für ratings nur field=rating erlaubt.`);
+      }
+      if (!Object.hasOwn(RATING_LABELS, value)) {
+        throw new Error(`Projekt CSV: Ungültiger Rating-Wert in Zeile ${rowNo}.`);
+      }
+      ratings[id] = value;
+      return;
+    }
+
+    throw new Error(`Projekt CSV: Unbekannte section "${section}" in Zeile ${rowNo}.`);
+  });
+
+  const requirements = Array.from(requirementsMap.values()).map((req, idx) => {
+    if (!req.title || !req.category || !req.description) {
+      throw new Error(`Projekt CSV: Unvollständige Anforderung in Block ${idx + 1}.`);
+    }
+    req.type = normalizeType(req.type);
+    req.priority = normalizePriority(req.priority);
+    return req;
+  });
+
+  const products = Array.from(productsMap.values()).map((prd, idx) => {
+    if (!prd.name || !prd.vendor || !prd.summary) {
+      throw new Error(`Projekt CSV: Unvollständiges Produkt in Block ${idx + 1}.`);
+    }
+    return prd;
+  });
+
+  const requirementIds = new Set(requirements.map((item) => item.id));
+  const productIds = new Set(products.map((item) => item.id));
+  const filteredRatings = {};
+  Object.entries(ratings).forEach(([key, rating]) => {
+    const [reqId, prdId] = key.split("__");
+    if (requirementIds.has(reqId) && productIds.has(prdId)) {
+      filteredRatings[key] = rating;
+    }
+  });
+
+  return { requirements, products, ratings: filteredRatings };
+}
+
 function ratingKey(requirementId, productId) {
   return `${requirementId}__${productId}`;
 }
@@ -812,6 +967,13 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function initializeProjectPicker() {
+  render();
+  if (typeof projectDialog.showModal === "function" && !projectDialog.open) {
+    projectDialog.showModal();
+  }
+}
+
 function openWorkflow(type) {
   workflowType = type;
   workflowStepIndex = 0;
@@ -839,4 +1001,4 @@ function setFormEditingState(kind, isEditing) {
   submitBtn.textContent = isEditing ? "Änderung speichern" : kind === "requirement" ? "Anforderung hinzufügen" : "Produkt hinzufügen";
 }
 
-render();
+initializeProjectPicker();
