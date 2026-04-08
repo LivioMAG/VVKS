@@ -150,6 +150,7 @@ resetBtn.addEventListener("click", () => {
   state.requirements = [];
   state.products = [];
   state.ratings = {};
+  state.requirementJustifications = {};
   state.mustWeight = 50;
   state.niceWeight = 20;
   state.priceWeight = 30;
@@ -169,6 +170,7 @@ createProjectBtn.addEventListener("click", () => {
   state.requirements = [];
   state.products = [];
   state.ratings = {};
+  state.requirementJustifications = {};
   state.mustWeight = 50;
   state.niceWeight = 20;
   state.priceWeight = 30;
@@ -200,6 +202,7 @@ projectCsvInput.addEventListener("change", async () => {
     state.requirements = importedState.requirements;
     state.products = importedState.products;
     state.ratings = importedState.ratings;
+    state.requirementJustifications = importedState.requirementJustifications;
     state.collapsed = importedState.collapsed;
     editingRequirementId = null;
     editingProductId = null;
@@ -249,6 +252,7 @@ requirementsCsvInput.addEventListener("change", async () => {
     const importedRequirements = rowsToRequirements(rows);
     state.requirements = importedRequirements;
     state.ratings = {};
+    state.requirementJustifications = {};
     editingRequirementId = null;
     setFormEditingState("requirement", false);
     persistAndRender();
@@ -270,6 +274,7 @@ productsCsvInput.addEventListener("change", async () => {
     const importedProducts = rowsToProducts(rows);
     state.products = importedProducts;
     state.ratings = {};
+    state.requirementJustifications = {};
     editingProductId = null;
     setFormEditingState("product", false);
     persistAndRender();
@@ -312,6 +317,7 @@ function loadState() {
     requirements: [],
     products: [],
     ratings: {},
+    requirementJustifications: {},
     mustWeight: 50,
     niceWeight: 20,
     priceWeight: 30,
@@ -327,6 +333,10 @@ function loadState() {
       requirements: Array.isArray(parsed.requirements) ? parsed.requirements : [],
       products: Array.isArray(parsed.products) ? parsed.products : [],
       ratings: parsed.ratings && typeof parsed.ratings === "object" ? parsed.ratings : {},
+      requirementJustifications:
+        parsed.requirementJustifications && typeof parsed.requirementJustifications === "object"
+          ? parsed.requirementJustifications
+          : {},
       mustWeight: clamp(Number(parsed.mustWeight ?? 50), 0, 100),
       niceWeight: clamp(Number(parsed.niceWeight ?? 20), 0, 100),
       priceWeight: clamp(Number(parsed.priceWeight ?? 30), 0, 100),
@@ -420,6 +430,7 @@ function renderRequirements() {
       Object.keys(state.ratings).forEach((key) => {
         if (key.startsWith(`${id}__`)) delete state.ratings[key];
       });
+      delete state.requirementJustifications[id];
       persistAndRender();
     });
   });
@@ -533,7 +544,7 @@ function renderMatrix() {
   for (const prd of state.products) {
     html += `<th>${escapeHtml(prd.name)}</th>`;
   }
-  html += "</tr></thead><tbody>";
+  html += "<th>Begründung</th></tr></thead><tbody>";
 
   for (const req of state.requirements) {
     html += `<tr><td><strong>${escapeHtml(req.title)}</strong><br><span class='meta'>${labelType(req.type)} | ${labelPriority(req.priority)}</span></td>`;
@@ -549,6 +560,17 @@ function renderMatrix() {
         </select>
       </td>`;
     }
+    const requirementIsComplete = isRequirementFullyRated(req.id);
+    const currentJustification = state.requirementJustifications?.[req.id] || "";
+    html += `<td>
+      ${
+        requirementIsComplete
+          ? `<textarea data-requirement-justification="${req.id}" class="matrix-justification" rows="3" placeholder="Begründung zur Bewertung dieser Anforderung">${escapeHtml(
+              currentJustification
+            )}</textarea>`
+          : "<p class='meta'>Textfeld erscheint, sobald alle Produkte für diese Anforderung bewertet sind.</p>"
+      }
+    </td>`;
     html += "</tr>";
   }
 
@@ -558,6 +580,15 @@ function renderMatrix() {
   document.querySelectorAll("select[data-matrix]").forEach((select) => {
     select.addEventListener("change", () => {
       state.ratings[select.getAttribute("data-matrix")] = select.value;
+      persistAndRender();
+    });
+  });
+
+  document.querySelectorAll("textarea[data-requirement-justification]").forEach((textarea) => {
+    textarea.addEventListener("change", () => {
+      const requirementId = textarea.getAttribute("data-requirement-justification");
+      if (!requirementId) return;
+      state.requirementJustifications[requirementId] = textarea.value.trim();
       persistAndRender();
     });
   });
@@ -855,6 +886,7 @@ function buildPdfReportNode() {
     .join("");
   const overallChart = buildOverallChart(evaluation);
   const requirementCharts = buildRequirementCharts(evaluation, true);
+  const requirementJustifications = buildRequirementJustificationList();
 
   wrapper.style.fontFamily = "Inter, Arial, sans-serif";
   wrapper.style.color = "#1f2937";
@@ -973,6 +1005,13 @@ function buildPdfReportNode() {
         ${requirementCharts || "<p>Keine Grafik verfügbar.</p>"}
       </div>
     </section>
+
+    <section class="pdf-page">
+      <div class="pdf-page-content">
+        <h2 style="color:${headingColor};padding-left:2px;margin:0 0 4mm;">Begründungen je Anforderung</h2>
+        ${requirementJustifications}
+      </div>
+    </section>
   `;
 
   return wrapper;
@@ -994,6 +1033,26 @@ function buildPdfFooter() {
       </div>
     </div>
   `;
+}
+
+function buildRequirementJustificationList() {
+  if (!state.requirements.length) {
+    return "<p>Keine Anforderungen vorhanden.</p>";
+  }
+
+  const items = state.requirements
+    .map((req) => {
+      const text = state.requirementJustifications?.[req.id]?.trim();
+      return `
+        <li style="margin-bottom:8px;">
+          <strong>${escapeHtml(req.title)}</strong><br />
+          ${text ? escapeHtml(text) : "<span class='pdf-muted'>Keine Begründung erfasst.</span>"}
+        </li>
+      `;
+    })
+    .join("");
+
+  return `<ul style="padding-left:18px;margin:0;">${items}</ul>`;
 }
 
 function getRequirementWeight(req) {
@@ -1186,6 +1245,10 @@ function buildProjectCsvRows() {
     rows.push(["ratings", key, "rating", rating]);
   });
 
+  Object.entries(state.requirementJustifications || {}).forEach(([requirementId, justification]) => {
+    rows.push(["requirement_justifications", requirementId, "text", justification || ""]);
+  });
+
   return rows;
 }
 
@@ -1196,6 +1259,7 @@ function rowsToProjectState(rows) {
   const requirementsMap = new Map();
   const productsMap = new Map();
   const ratings = {};
+  const requirementJustifications = {};
   const meta = {};
 
   rows.data.forEach((entry, idx) => {
@@ -1237,6 +1301,14 @@ function rowsToProjectState(rows) {
       return;
     }
 
+    if (section === "requirement_justifications") {
+      if (field !== "text") {
+        throw new Error(`Projekt CSV: Ungültiges Feld in Zeile ${rowNo}. Für requirement_justifications nur field=text erlaubt.`);
+      }
+      requirementJustifications[id] = value;
+      return;
+    }
+
     throw new Error(`Projekt CSV: Unbekannte section "${section}" in Zeile ${rowNo}.`);
   });
 
@@ -1266,6 +1338,13 @@ function rowsToProjectState(rows) {
     }
   });
 
+  const filteredRequirementJustifications = {};
+  Object.entries(requirementJustifications).forEach(([requirementId, text]) => {
+    if (requirementIds.has(requirementId)) {
+      filteredRequirementJustifications[requirementId] = text;
+    }
+  });
+
   return {
     projectName: meta.projectname || "Importiertes Projekt",
     mustWeight: clamp(Number(meta.mustweight ?? 50), 0, 100),
@@ -1274,12 +1353,21 @@ function rowsToProjectState(rows) {
     requirements,
     products,
     ratings: filteredRatings,
+    requirementJustifications: filteredRequirementJustifications,
     collapsed: { requirements: false, products: false },
   };
 }
 
 function ratingKey(requirementId, productId) {
   return `${requirementId}__${productId}`;
+}
+
+function isRequirementFullyRated(requirementId) {
+  if (!requirementId || !state.products.length) return false;
+  return state.products.every((product) => {
+    const key = ratingKey(requirementId, product.id);
+    return (state.ratings[key] || "na") !== "na";
+  });
 }
 
 function makeId(prefix) {

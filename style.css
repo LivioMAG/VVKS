@@ -353,6 +353,12 @@ td select {
   width: 100%;
 }
 
+.matrix-justification {
+  width: 100%;
+  min-width: 220px;
+  resize: vertical;
+}
+
 .hint {
   margin-top: -0.2rem;
   color: var(--muted);
