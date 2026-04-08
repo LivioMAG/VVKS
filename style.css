@@ -359,6 +359,10 @@ td select {
   resize: vertical;
 }
 
+.matrix-justification-note {
+  margin-top: 0.4rem;
+}
+
 .hint {
   margin-top: -0.2rem;
   color: var(--muted);
