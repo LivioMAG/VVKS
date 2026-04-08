@@ -563,12 +563,17 @@ function renderMatrix() {
     const requirementIsComplete = isRequirementFullyRated(req.id);
     const currentJustification = state.requirementJustifications?.[req.id] || "";
     html += `<td>
+      <textarea data-requirement-justification="${req.id}" class="matrix-justification" rows="3" ${
+        requirementIsComplete ? "" : "disabled"
+      } placeholder="${
+        requirementIsComplete
+          ? "Begründung zur Bewertung dieser Anforderung"
+          : "Bitte zuerst alle Produkte für diese Anforderung bewerten"
+      }">${escapeHtml(currentJustification)}</textarea>
       ${
         requirementIsComplete
-          ? `<textarea data-requirement-justification="${req.id}" class="matrix-justification" rows="3" placeholder="Begründung zur Bewertung dieser Anforderung">${escapeHtml(
-              currentJustification
-            )}</textarea>`
-          : "<p class='meta'>Textfeld erscheint, sobald alle Produkte für diese Anforderung bewertet sind.</p>"
+          ? ""
+          : "<p class='meta matrix-justification-note'>Das Begründungsfeld wird aktiv, sobald alle Bewertungen gesetzt sind.</p>"
       }
     </td>`;
     html += "</tr>";
