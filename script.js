@@ -832,28 +832,59 @@ function buildRequirementCharts(evaluation, compact = false) {
 
   return state.requirements
     .map((req) => {
-      const bars = state.products
-        .map((prd) => {
-          const rating = state.ratings[ratingKey(req.id, prd.id)] || "na";
-          const percent = (RATING_FACTOR[rating] ?? 0) * 100;
-          const safeHeight = Math.max(4, Math.min(100, percent));
-          const failedCriticalClass = req.priority === "critical" && ["partial", "none"].includes(rating) ? " failed-critical" : "";
-          return `
-            <div class="mini-chart-col">
-              <div class="mini-chart-track">
-                <div class="mini-chart-fill type-${req.type}${failedCriticalClass}" style="height:${safeHeight}%">${percent.toFixed(0)}%</div>
-              </div>
-              <div class="mini-chart-label">${escapeHtml(prd.name)}</div>
-            </div>
-          `;
-        })
-        .join("");
+      const bars = buildRequirementBars(req);
 
       const compactStyle = compact ? " style='break-inside:avoid;margin-bottom:12px;'" : "";
       return `
         <article class="requirement-chart"${compactStyle}>
           <h4>${escapeHtml(req.title)}</h4>
           <div class="mini-chart-grid">${bars}</div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function buildRequirementBars(req) {
+  return state.products
+    .map((prd) => {
+      const rating = state.ratings[ratingKey(req.id, prd.id)] || "na";
+      const percent = (RATING_FACTOR[rating] ?? 0) * 100;
+      const safeHeight = Math.max(4, Math.min(100, percent));
+      const failedCriticalClass = req.priority === "critical" && ["partial", "none"].includes(rating) ? " failed-critical" : "";
+      return `
+        <div class="mini-chart-col">
+          <div class="mini-chart-track">
+            <div class="mini-chart-fill type-${req.type}${failedCriticalClass}" style="height:${safeHeight}%">${percent.toFixed(0)}%</div>
+          </div>
+          <div class="mini-chart-label">${escapeHtml(prd.name)}</div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function buildPdfRequirementChartRows() {
+  if (!state.requirements.length || !state.products.length) {
+    return "<p class='meta'>Keine Daten für Anforderungsdiagramme vorhanden.</p>";
+  }
+
+  return state.requirements
+    .map((req) => {
+      const bars = buildRequirementBars(req);
+      const note = req.note?.trim();
+      const justification = state.requirementJustifications?.[req.id]?.trim();
+
+      return `
+        <article class="pdf-requirement-row">
+          <div class="pdf-requirement-chart">
+            <h4>${escapeHtml(req.title)}</h4>
+            <div class="mini-chart-grid">${bars}</div>
+          </div>
+          <div class="pdf-requirement-text">
+            <p><strong>Bemerkung:</strong> ${note ? escapeHtml(note) : "<span class='pdf-muted'>Keine Bemerkung erfasst.</span>"}</p>
+            <p><strong>Begründung:</strong> ${justification ? escapeHtml(justification) : "<span class='pdf-muted'>Keine Begründung erfasst.</span>"}</p>
+          </div>
         </article>
       `;
     })
@@ -890,8 +921,7 @@ function buildPdfReportNode() {
     .map((prd) => `<li><strong>${escapeHtml(prd.name)}</strong> – ${escapeHtml(prd.vendor)} – ${escapeHtml(formatPriceCHF(prd.price || "k. A."))}</li>`)
     .join("");
   const overallChart = buildOverallChart(evaluation);
-  const requirementCharts = buildRequirementCharts(evaluation, true);
-  const requirementJustifications = buildRequirementJustificationList();
+  const requirementChartRows = buildPdfRequirementChartRows();
 
   wrapper.style.fontFamily = "Inter, Arial, sans-serif";
   wrapper.style.color = "#1f2937";
@@ -972,6 +1002,24 @@ function buildPdfReportNode() {
       .mini-chart-fill.type-nice { background: #c7d2fe; color: #312e81; }
       .mini-chart-fill.failed-critical { background: #fecaca; color: #7f1d1d; }
       .mini-chart-label { font-size: 9px; color: #475569; }
+      .pdf-requirement-row {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 6mm;
+        margin-bottom: 6mm;
+        align-items: start;
+        break-inside: avoid;
+      }
+      .pdf-requirement-row:last-child { margin-bottom: 0; }
+      .pdf-requirement-chart h4 { margin: 0 0 6px; font-size: 12px; font-weight: 600; }
+      .pdf-requirement-text {
+        font-size: 10px;
+        line-height: 1.4;
+        border-left: 1px solid #d7dee8;
+        padding-left: 4mm;
+      }
+      .pdf-requirement-text p { margin: 0 0 4mm; }
+      .pdf-requirement-text p:last-child { margin-bottom: 0; }
     </style>
 
     <section class="pdf-page has-fixed-footer">
@@ -1006,15 +1054,8 @@ function buildPdfReportNode() {
 
     <section class="pdf-page">
       <div class="pdf-page-content">
-        <h2 style="color:${headingColor};padding-left:2px;margin:0 0 4mm;">Säulendiagramme je Anforderung</h2>
-        ${requirementCharts || "<p>Keine Grafik verfügbar.</p>"}
-      </div>
-    </section>
-
-    <section class="pdf-page">
-      <div class="pdf-page-content">
-        <h2 style="color:${headingColor};padding-left:2px;margin:0 0 4mm;">Begründungen je Anforderung</h2>
-        ${requirementJustifications}
+        <h2 style="color:${headingColor};padding-left:2px;margin:0 0 4mm;">Säulendiagramme je Anforderung mit Bemerkung/Begründung</h2>
+        ${requirementChartRows}
       </div>
     </section>
   `;
@@ -1038,26 +1079,6 @@ function buildPdfFooter() {
       </div>
     </div>
   `;
-}
-
-function buildRequirementJustificationList() {
-  if (!state.requirements.length) {
-    return "<p>Keine Anforderungen vorhanden.</p>";
-  }
-
-  const items = state.requirements
-    .map((req) => {
-      const text = state.requirementJustifications?.[req.id]?.trim();
-      return `
-        <li style="margin-bottom:8px;">
-          <strong>${escapeHtml(req.title)}</strong><br />
-          ${text ? escapeHtml(text) : "<span class='pdf-muted'>Keine Begründung erfasst.</span>"}
-        </li>
-      `;
-    })
-    .join("");
-
-  return `<ul style="padding-left:18px;margin:0;">${items}</ul>`;
 }
 
 function getRequirementWeight(req) {
