@@ -872,18 +872,20 @@ function buildPdfRequirementChartRows() {
   return state.requirements
     .map((req) => {
       const bars = buildRequirementBars(req);
-      const note = req.note?.trim();
+      const shortDescription = req.description?.trim();
       const justification = state.requirementJustifications?.[req.id]?.trim();
 
       return `
         <article class="pdf-requirement-row">
-          <div class="pdf-requirement-chart">
+          <div class="pdf-requirement-head">
             <h4>${escapeHtml(req.title)}</h4>
+            <p class="pdf-short-description">${shortDescription ? escapeHtml(shortDescription) : "<span class='pdf-muted'>Keine Kurzbeschreibung erfasst.</span>"}</p>
+          </div>
+          <div class="pdf-requirement-chart">
             <div class="mini-chart-grid">${bars}</div>
           </div>
-          <div class="pdf-requirement-text">
-            <p><strong>Bemerkung:</strong> ${note ? escapeHtml(note) : "<span class='pdf-muted'>Keine Bemerkung erfasst.</span>"}</p>
-            <p><strong>Begründung:</strong> ${justification ? escapeHtml(justification) : "<span class='pdf-muted'>Keine Begründung erfasst.</span>"}</p>
+          <div class="pdf-requirement-justification">
+            ${justification ? escapeHtml(justification) : "<span class='pdf-muted'>Keine Begründung erfasst.</span>"}
           </div>
         </article>
       `;
@@ -1003,23 +1005,29 @@ function buildPdfReportNode() {
       .mini-chart-fill.failed-critical { background: #fecaca; color: #7f1d1d; }
       .mini-chart-label { font-size: 9px; color: #475569; }
       .pdf-requirement-row {
-        display: grid;
-        grid-template-columns: 2fr 1fr;
-        gap: 6mm;
+        display: flex;
+        flex-direction: column;
+        gap: 2.5mm;
         margin-bottom: 6mm;
-        align-items: start;
+        padding-bottom: 4mm;
+        border-bottom: 1px solid #e2e8f0;
         break-inside: avoid;
+        page-break-inside: avoid;
       }
       .pdf-requirement-row:last-child { margin-bottom: 0; }
-      .pdf-requirement-chart h4 { margin: 0 0 6px; font-size: 12px; font-weight: 600; }
-      .pdf-requirement-text {
+      .pdf-requirement-head h4 { margin: 0; font-size: 12px; font-weight: 600; }
+      .pdf-short-description {
+        margin: 1mm 0 0;
+        font-size: 10px;
+        line-height: 1.35;
+        font-weight: 700;
+        color: #0f172a;
+      }
+      .pdf-requirement-justification {
         font-size: 10px;
         line-height: 1.4;
-        border-left: 1px solid #d7dee8;
-        padding-left: 4mm;
+        color: #6b7280;
       }
-      .pdf-requirement-text p { margin: 0 0 4mm; }
-      .pdf-requirement-text p:last-child { margin-bottom: 0; }
     </style>
 
     <section class="pdf-page has-fixed-footer">
