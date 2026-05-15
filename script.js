@@ -33,8 +33,10 @@ const RATING_LABELS = {
 
 const state = loadState();
 
+const sourceForm = document.getElementById("sourceForm");
 const requirementForm = document.getElementById("requirementForm");
 const productForm = document.getElementById("productForm");
+const sourcesList = document.getElementById("sourcesList");
 const requirementsList = document.getElementById("requirementsList");
 const productsList = document.getElementById("productsList");
 const matrixContainer = document.getElementById("matrixContainer");
@@ -95,6 +97,16 @@ let editingProductId = null;
 let pendingQuickEdit = null;
 let matrixFilterValue = "all";
 
+sourceForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const data = new FormData(sourceForm);
+  const value = data.get("value").toString().trim();
+  if (!value) return;
+  state.sources.push({ id: makeId("src"), value });
+  sourceForm.reset();
+  persistAndRender();
+});
+
 requirementForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const data = new FormData(requirementForm);
@@ -147,6 +159,7 @@ resetBtn.addEventListener("click", () => {
   if (!confirmReset) return;
   sessionStorage.removeItem(STORAGE_KEY);
   state.projectName = "";
+  state.sources = [];
   state.requirements = [];
   state.products = [];
   state.ratings = {};
@@ -167,6 +180,7 @@ createProjectBtn.addEventListener("click", () => {
     return;
   }
   state.projectName = enteredName;
+  state.sources = [];
   state.requirements = [];
   state.products = [];
   state.ratings = {};
@@ -199,6 +213,7 @@ projectCsvInput.addEventListener("change", async () => {
     state.niceWeight = importedState.niceWeight;
     state.priceWeight = importedState.priceWeight;
     state.lockedWeightKey = importedState.lockedWeightKey;
+    state.sources = importedState.sources;
     state.requirements = importedState.requirements;
     state.products = importedState.products;
     state.ratings = importedState.ratings;
@@ -314,6 +329,7 @@ quickEditSaveBtn.addEventListener("click", applyQuickEditSelection);
 function loadState() {
   const fallback = {
     projectName: "",
+    sources: [],
     requirements: [],
     products: [],
     ratings: {},
@@ -330,6 +346,7 @@ function loadState() {
     const parsed = JSON.parse(raw);
     return {
       projectName: typeof parsed.projectName === "string" ? parsed.projectName : "",
+      sources: Array.isArray(parsed.sources) ? parsed.sources : [],
       requirements: Array.isArray(parsed.requirements) ? parsed.requirements : [],
       products: Array.isArray(parsed.products) ? parsed.products : [],
       ratings: parsed.ratings && typeof parsed.ratings === "object" ? parsed.ratings : {},
@@ -358,6 +375,7 @@ function persistAndRender() {
 
 function render() {
   renderHeaderProjectName();
+  renderSources();
   renderCollapseUi();
   renderRequirements();
   renderProducts();
@@ -385,6 +403,36 @@ function renderCollapseUi() {
 
   toggleRequirementsBtn.textContent = state.collapsed.requirements ? "Erweitern" : "Minimieren";
   toggleProductsBtn.textContent = state.collapsed.products ? "Erweitern" : "Minimieren";
+}
+
+function renderSources() {
+  if (!state.sources.length) {
+    sourcesList.innerHTML = "<p class='meta'>Noch keine Quellen erfasst.</p>";
+    return;
+  }
+
+  sourcesList.innerHTML = state.sources
+    .map(
+      (source) => `
+      <article class="list-item">
+        <div class="item-content">
+          <p class="meta">${escapeHtml(source.value)}</p>
+          <div class="item-actions item-actions-bottom">
+            <button class="icon-btn danger" type="button" data-remove-source="${source.id}" aria-label="Quelle löschen">🗑️</button>
+          </div>
+        </div>
+      </article>
+    `
+    )
+    .join("");
+
+  document.querySelectorAll("[data-remove-source]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-remove-source");
+      state.sources = state.sources.filter((source) => source.id !== id);
+      persistAndRender();
+    });
+  });
 }
 
 function renderRequirements() {
@@ -922,6 +970,7 @@ function buildPdfReportNode() {
   const productList = state.products
     .map((prd) => `<li><strong>${escapeHtml(prd.name)}</strong> – ${escapeHtml(prd.vendor)} – ${escapeHtml(formatPriceCHF(prd.price || "k. A."))}</li>`)
     .join("");
+  const sourceList = state.sources.map((source) => `<li>${escapeHtml(source.value)}</li>`).join("");
   const overallChart = buildOverallChart(evaluation);
   const requirementChartRows = buildPdfRequirementChartRows();
 
@@ -1048,6 +1097,10 @@ function buildPdfReportNode() {
         <h2 style="color:${headingColor};padding-left:2px;margin:0 0 4mm;">Produkte</h2>
         <ul class="pdf-muted">
           ${productList || "<li>Keine Produkte vorhanden.</li>"}
+        </ul>
+        <h2 style="color:${headingColor};padding-left:2px;margin:4mm 0 3mm;">Quellen</h2>
+        <ul class="pdf-muted">
+          ${sourceList || "<li>Keine Quellen vorhanden.</li>"}
         </ul>
       </div>
       ${buildPdfFooter()}
@@ -1258,6 +1311,10 @@ function buildProjectCsvRows() {
   rows.push(["meta", "project", "niceWeight", String(state.niceWeight ?? 20)]);
   rows.push(["meta", "project", "priceWeight", String(state.priceWeight ?? 30)]);
 
+  state.sources.forEach((source) => {
+    rows.push(["sources", source.id, "value", source.value]);
+  });
+
   state.requirements.forEach((req) => {
     rows.push(["requirements", req.id, "title", req.title]);
     rows.push(["requirements", req.id, "category", req.category]);
@@ -1290,6 +1347,7 @@ function rowsToProjectState(rows) {
   const requiredHeaders = ["section", "id", "field", "value"];
   ensureHeaders(rows.headers, requiredHeaders, "Projekt");
 
+  const sourcesMap = new Map();
   const requirementsMap = new Map();
   const productsMap = new Map();
   const ratings = {};
@@ -1310,6 +1368,12 @@ function rowsToProjectState(rows) {
 
     if (!section || !id || !field) {
       throw new Error(`Projekt CSV: Ungültige Zeile ${rowNo}. section, id und field sind Pflicht.`);
+    }
+
+    if (section === "sources") {
+      if (!sourcesMap.has(id)) sourcesMap.set(id, { id, value: "" });
+      sourcesMap.get(id)[field] = value;
+      return;
     }
 
     if (section === "requirements") {
@@ -1346,6 +1410,8 @@ function rowsToProjectState(rows) {
     throw new Error(`Projekt CSV: Unbekannte section "${section}" in Zeile ${rowNo}.`);
   });
 
+  const sources = Array.from(sourcesMap.values()).map((source) => ({ id: source.id, value: source.value || "" })).filter((source) => source.value);
+
   const requirements = Array.from(requirementsMap.values()).map((req, idx) => {
     if (!req.title || !req.category || !req.description) {
       throw new Error(`Projekt CSV: Unvollständige Anforderung in Block ${idx + 1}.`);
@@ -1381,6 +1447,7 @@ function rowsToProjectState(rows) {
 
   return {
     projectName: meta.projectname || "Importiertes Projekt",
+    sources,
     mustWeight: clamp(Number(meta.mustweight ?? 50), 0, 100),
     niceWeight: clamp(Number(meta.niceweight ?? 20), 0, 100),
     priceWeight: clamp(Number(meta.priceweight ?? 30), 0, 100),
