@@ -34,7 +34,24 @@
     </header>
 
     <main class="layout">
-      <section class="card" id="requirementsCard">
+      
+      <section class="card" id="sourcesCard">
+        <div class="section-head">
+          <h2>Quellen</h2>
+        </div>
+        <form id="sourceForm" class="grid-form">
+          <label class="span-2">
+            URL oder Text
+            <input type="text" name="value" required placeholder="https://beispiel.de/quelle oder Notiztext" />
+          </label>
+          <div class="actions span-2">
+            <button type="submit" class="btn btn-secondary">Quelle hinzufügen</button>
+          </div>
+        </form>
+        <div id="sourcesList" class="list"></div>
+      </section>
+
+<section class="card" id="requirementsCard">
         <div class="section-head">
           <h2>Anforderungen</h2>
           <button type="button" id="toggleRequirementsBtn" class="btn btn-ghost collapse-btn" hidden>Minimieren</button>
