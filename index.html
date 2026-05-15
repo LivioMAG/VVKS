@@ -35,7 +35,7 @@
 
     <main class="layout">
       
-      <section class="card" id="sourcesCard">
+      <section class="card span-full" id="sourcesCard">
         <div class="section-head">
           <h2>Quellen</h2>
         </div>
@@ -51,7 +51,50 @@
         <div id="sourcesList" class="list"></div>
       </section>
 
-<section class="card" id="requirementsCard">
+<div class="top-row span-full">
+      <section class="card" id="productsCard">
+        <div class="section-head">
+          <h2>Produkte</h2>
+          <button type="button" id="toggleProductsBtn" class="btn btn-ghost collapse-btn" hidden>Minimieren</button>
+        </div>
+        <div class="collapsible-body" id="productsBody">
+          <div class="csv-actions">
+            <button type="button" id="uploadProductsCsvBtn" class="btn btn-ghost">Produkt Uploaden</button>
+            <span class="csv-actions-spacer" aria-hidden="true"></span>
+            <button type="button" id="productsPromptBtn" class="btn btn-ghost">🤖</button>
+            <button type="button" id="productsInfoBtn" class="btn btn-ghost">ℹ️</button>
+            <input id="productsCsvInput" type="file" accept=".csv,text/csv" hidden />
+          </div>
+          <form id="productForm" class="grid-form">
+            <label>
+              Produktname
+              <input type="text" name="name" required placeholder="z. B. Produkt A" />
+            </label>
+            <label>
+              Hersteller
+              <input type="text" name="vendor" required placeholder="z. B. Firma XY" />
+            </label>
+            <label class="span-2">
+              Kurzbeschreibung
+              <textarea name="summary" rows="2" placeholder="Kurzbeschreibung des Produkts (optional)"></textarea>
+            </label>
+            <label>
+              Preis / Preisnotiz
+              <input type="text" name="price" required placeholder="z. B. 49 € / Monat" />
+            </label>
+            <label>
+              Bemerkung
+              <input type="text" name="note" placeholder="Optional" />
+            </label>
+            <div class="actions span-2">
+              <button type="submit" class="btn btn-secondary">Produkt hinzufügen</button>
+            </div>
+          </form>
+          <div id="productsList" class="list"></div>
+        </div>
+      </section>
+
+      <section class="card" id="requirementsCard">
         <div class="section-head">
           <h2>Anforderungen</h2>
           <button type="button" id="toggleRequirementsBtn" class="btn btn-ghost collapse-btn" hidden>Minimieren</button>
@@ -104,48 +147,7 @@
           <div id="requirementsList" class="list"></div>
         </div>
       </section>
-
-      <section class="card" id="productsCard">
-        <div class="section-head">
-          <h2>Produkte</h2>
-          <button type="button" id="toggleProductsBtn" class="btn btn-ghost collapse-btn" hidden>Minimieren</button>
-        </div>
-        <div class="collapsible-body" id="productsBody">
-          <div class="csv-actions">
-            <button type="button" id="uploadProductsCsvBtn" class="btn btn-ghost">Produkt Uploaden</button>
-            <span class="csv-actions-spacer" aria-hidden="true"></span>
-            <button type="button" id="productsPromptBtn" class="btn btn-ghost">🤖</button>
-            <button type="button" id="productsInfoBtn" class="btn btn-ghost">ℹ️</button>
-            <input id="productsCsvInput" type="file" accept=".csv,text/csv" hidden />
-          </div>
-          <form id="productForm" class="grid-form">
-            <label>
-              Produktname
-              <input type="text" name="name" required placeholder="z. B. Produkt A" />
-            </label>
-            <label>
-              Hersteller
-              <input type="text" name="vendor" required placeholder="z. B. Firma XY" />
-            </label>
-            <label class="span-2">
-              Kurzbeschreibung
-              <textarea name="summary" rows="2" placeholder="Kurzbeschreibung des Produkts (optional)"></textarea>
-            </label>
-            <label>
-              Preis / Preisnotiz
-              <input type="text" name="price" required placeholder="z. B. 49 € / Monat" />
-            </label>
-            <label>
-              Bemerkung
-              <input type="text" name="note" placeholder="Optional" />
-            </label>
-            <div class="actions span-2">
-              <button type="submit" class="btn btn-secondary">Produkt hinzufügen</button>
-            </div>
-          </form>
-          <div id="productsList" class="list"></div>
-        </div>
-      </section>
+      </div>
 
       <section class="card span-full">
         <h2>Bewertungsmatrix</h2>
