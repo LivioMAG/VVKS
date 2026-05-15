@@ -971,6 +971,8 @@ function buildPdfReportNode() {
     .map((prd) => `<li><strong>${escapeHtml(prd.name)}</strong> – ${escapeHtml(prd.vendor)} – ${escapeHtml(formatPriceCHF(prd.price || "k. A."))}</li>`)
     .join("");
   const sourceList = state.sources.map((source) => `<li>${escapeHtml(source.value)}</li>`).join("");
+  const mustRequirementCount = state.requirements.filter((req) => req.type === "must").length;
+  const niceRequirementCount = state.requirements.filter((req) => req.type === "nice").length;
   const overallChart = buildOverallChart(evaluation);
   const requirementChartRows = buildPdfRequirementChartRows();
 
@@ -1102,6 +1104,16 @@ function buildPdfReportNode() {
         <ul class="pdf-muted">
           ${sourceList || "<li>Keine Quellen vorhanden.</li>"}
         </ul>
+        <h3 style="color:${headingColor};margin:5mm 0 2mm;font-size:15px;">Bewertungsskala</h3>
+        <ul class="pdf-muted" style="margin:0 0 3mm 0;">
+          <li>Must-Have-Relevanz: ${evaluation.mustWeight}%</li>
+          <li>Nice-to-have-Relevanz: ${evaluation.niceWeight}%</li>
+          <li>Preisrelevanz: ${evaluation.priceWeight}%</li>
+        </ul>
+        <p class="pdf-muted" style="margin:0;">
+          Anzahl Must-Have-Anforderungen: <strong>${mustRequirementCount}</strong><br />
+          Anzahl Nice-to-have-Anforderungen: <strong>${niceRequirementCount}</strong>
+        </p>
       </div>
       ${buildPdfFooter()}
     </section>
